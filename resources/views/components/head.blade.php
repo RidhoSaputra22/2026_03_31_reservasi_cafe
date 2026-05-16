@@ -1,6 +1,6 @@
 @php
-    $pageTitle = $pageTitle ?? config('cafe.name', config('app.name'));
-    $pageDescription = $pageDescription ?? config('cafe.default_description');
+    $pageTitle = $pageTitle ?? 'AMIKOSPACE Coffee & Tea';
+    $pageDescription = $pageDescription ?? 'Aplikasi reservasi cafe AMIKOSPACE Coffee & Tea.';
 @endphp
 <!doctype html>
 <html lang="id">
@@ -9,38 +9,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ $pageTitle }}</title>
   <meta name="description" content="{{ $pageDescription }}">
-  <script>
-    window.tailwind = window.tailwind || {};
-    window.tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            coffee: {
-              50: '#fbf7f0',
-              100: '#f1e6d4',
-              200: '#d7c0a0',
-              300: '#b9956c',
-              400: '#8a623d',
-              500: '#6f4b32',
-              600: '#563927',
-              700: '#3d2a1f',
-              800: '#271b15',
-              900: '#16100d'
-            }
-          },
-          boxShadow: {
-            soft: '0 18px 60px rgba(39, 27, 21, 0.16)'
-          }
-        }
-      }
-    };
-  </script>
-  <script src="https://cdn.tailwindcss.com"></script>
+  @vite(['resources/css/app.css', 'resources/js/app.js'])
   <style>
     html { scroll-behavior: smooth; }
     body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .hero-bg {
-      background-image: linear-gradient(rgba(22,16,13,.56), rgba(22,16,13,.62)), url('{{ asset('assets/images/hero.png') }}');
+      background-image: linear-gradient(rgba(22,16,13,.56), rgba(22,16,13,.62)), url('{{ asset('assets/images/hero.jpg') }}');
       background-size: cover;
       background-position: center;
     }

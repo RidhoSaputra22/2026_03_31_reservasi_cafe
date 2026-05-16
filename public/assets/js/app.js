@@ -1,5 +1,5 @@
-const CART_KEY = 'interlude_cart';
-const RESERVATION_KEY = 'interlude_last_reservation';
+const CART_KEY = 'AMIKOSPACE_cart';
+const RESERVATION_KEY = 'AMIKOSPACE_last_reservation';
 
 function rupiah(amount) {
   return new Intl.NumberFormat('id-ID', {
@@ -77,7 +77,7 @@ function clearCart() {
 
 function showToast(message) {
   const toast = document.createElement('div');
-  toast.className = 'fixed bottom-6 left-1/2 z-[80] -translate-x-1/2 rounded-full bg-coffee-900 px-5 py-3 text-sm font-bold text-white shadow-soft';
+  toast.className = 'fixed bottom-6 left-1/2 z-[80] -translate-x-1/2 rounded-full bg-coffee-900 px-5 py-3 text-sm font-bold text-white ';
   toast.textContent = message;
   document.body.appendChild(toast);
   setTimeout(() => toast.remove(), 1800);
@@ -94,7 +94,7 @@ function renderCart() {
   if (!cart.length) {
     wrapper.innerHTML = `
       <div class="rounded-3xl border border-dashed border-coffee-200 bg-coffee-50 p-8 text-center">
-        <p class="text-xl font-black text-coffee-800">Cart masih kosong</p>
+        <p class="text-xl font-black text-black">Cart masih kosong</p>
         <p class="mt-2 text-sm leading-6 text-coffee-600">Kamu bisa reservasi tanpa pre-order, atau tambahkan menu terlebih dahulu.</p>
       </div>
     `;
@@ -102,7 +102,7 @@ function renderCart() {
   }
 
   wrapper.innerHTML = cart.map((item) => `
-    <article class="grid gap-4 rounded-3xl border border-coffee-100 p-5 sm:grid-cols-[1fr_auto] sm:items-center">
+    <article class="grid gap-4 rounded-3xl border border-black p-5 sm:grid-cols-[1fr_auto] sm:items-center">
       <div>
         <p class="text-xs font-black uppercase tracking-[0.2em] text-coffee-400">${escapeHtml(item.category)}</p>
         <h3 class="mt-1 text-lg font-black text-coffee-900">${escapeHtml(item.name)}</h3>
@@ -110,9 +110,9 @@ function renderCart() {
       </div>
       <div class="flex items-center justify-between gap-3 sm:justify-end">
         <div class="flex items-center gap-2 rounded-full bg-coffee-50 p-1">
-          <button type="button" class="h-9 w-9 rounded-full bg-white font-black text-coffee-800" onclick="changeCartQty('${escapeHtml(item.id)}', -1)">-</button>
+          <button type="button" class="h-9 w-9 rounded-full bg-white font-black text-black" onclick="changeCartQty('${escapeHtml(item.id)}', -1)">-</button>
           <span class="min-w-8 text-center font-black text-coffee-900">${Number(item.qty || 0)}</span>
-          <button type="button" class="h-9 w-9 rounded-full bg-white font-black text-coffee-800" onclick="changeCartQty('${escapeHtml(item.id)}', 1)">+</button>
+          <button type="button" class="h-9 w-9 rounded-full bg-white font-black text-black" onclick="changeCartQty('${escapeHtml(item.id)}', 1)">+</button>
         </div>
         <p class="w-28 text-right font-black text-coffee-900">${rupiah(Number(item.price || 0) * Number(item.qty || 0))}</p>
         <button type="button" class="rounded-full border border-coffee-200 px-4 py-2 text-sm font-black text-coffee-700 hover:bg-coffee-50" onclick="removeCartItem('${escapeHtml(item.id)}')">Hapus</button>
@@ -129,7 +129,7 @@ function setReservationStep(step) {
   document.querySelectorAll('.reservation-step').forEach((button) => {
     const active = button.dataset.step === step;
     button.classList.toggle('active', active);
-    button.classList.toggle('bg-coffee-800', active);
+    button.classList.toggle('bg-black', active);
     button.classList.toggle('text-white', active);
     button.classList.toggle('text-coffee-600', !active);
   });
@@ -167,7 +167,7 @@ function renderReservationSummary(reservation) {
 
   summaryNode.innerHTML = `
     <div class="grid gap-4 md:grid-cols-2">
-      <article class="rounded-3xl border border-coffee-100 p-5">
+      <article class="rounded-3xl border border-black p-5">
         <p class="text-sm font-black uppercase tracking-[0.18em] text-coffee-400">Detail Tamu</p>
         <dl class="mt-4 grid gap-3 text-sm text-coffee-700">
           <div class="flex justify-between gap-4"><dt>Nama</dt><dd class="font-black text-coffee-900">${escapeHtml(reservation.guestName)}</dd></div>
@@ -176,7 +176,7 @@ function renderReservationSummary(reservation) {
           <div class="flex justify-between gap-4"><dt>Area</dt><dd class="font-black text-coffee-900">${escapeHtml(reservation.seat)}</dd></div>
         </dl>
       </article>
-      <article class="rounded-3xl border border-coffee-100 p-5">
+      <article class="rounded-3xl border border-black p-5">
         <p class="text-sm font-black uppercase tracking-[0.18em] text-coffee-400">Jadwal</p>
         <dl class="mt-4 grid gap-3 text-sm text-coffee-700">
           <div class="flex justify-between gap-4"><dt>Tanggal</dt><dd class="font-black text-coffee-900">${escapeHtml(reservation.date)}</dd></div>
@@ -185,7 +185,7 @@ function renderReservationSummary(reservation) {
         </dl>
       </article>
     </div>
-    <article class="rounded-3xl border border-coffee-100 p-5">
+    <article class="rounded-3xl border border-black p-5">
       <div class="flex items-center justify-between gap-4">
         <p class="text-sm font-black uppercase tracking-[0.18em] text-coffee-400">Pre-order</p>
         <p class="font-black text-coffee-900">${rupiah(Number(reservation.total || 0))}</p>
@@ -215,7 +215,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       document.querySelectorAll('.menu-filter').forEach((filterButton) => {
         const active = filterButton === button;
-        filterButton.classList.toggle('bg-coffee-800', active);
+        filterButton.classList.toggle('bg-black', active);
         filterButton.classList.toggle('text-white', active);
         filterButton.classList.toggle('text-coffee-700', !active);
       });

@@ -8,4 +8,44 @@
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+    --color-coffee-50: #fbf7f0;
+    --color-coffee-100: #f1e6d4;
+    --color-coffee-200: #d7c0a0;
+    --color-coffee-300: #bb9672;
+    --color-coffee-400: #8a623d;
+    --color-coffee-500: #6f4b32;
+    --color-coffee-600: #563927;
+    --color-coffee-700: #3d2a1f;
+    --color-coffee-800: #271b15;
+    --color-coffee-900: #16100d;
+}
+
+@layer base {
+    [x-cloak] {
+        display: none !important;
+    }
+
+    body {
+        background-color: var(--color-coffee-50);
+        color: var(--color-coffee-900);
+    }
+}
+
+@layer components {
+    .panel-surface {
+        @apply rounded-[2rem] border border-coffee-100 bg-white;
+        box-shadow: 0 24px 72px rgba(22, 16, 13, 0.08);
+    }
+
+    .pill-button-dark {
+        @apply inline-flex items-center justify-center rounded-full bg-coffee-900 px-6 py-3 text-sm font-black uppercase tracking-[0.16em] text-white transition duration-200 hover:-translate-y-0.5 hover:bg-coffee-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-coffee-100;
+    }
+
+    .pill-button-light {
+        @apply inline-flex items-center justify-center rounded-full border border-coffee-200 bg-white px-6 py-3 text-sm font-black text-coffee-700 transition duration-200 hover:border-coffee-300 hover:bg-coffee-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-coffee-100;
+    }
+
+    .form-field {
+        @apply w-full rounded-2xl border border-coffee-200 bg-white px-4 py-3 text-coffee-900 transition placeholder:text-coffee-400 focus:border-coffee-400 focus:outline-none focus:ring-4 focus:ring-coffee-100/80;
+    }
 }
