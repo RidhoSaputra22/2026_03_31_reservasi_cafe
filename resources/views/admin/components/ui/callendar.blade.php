@@ -272,7 +272,7 @@
                 },
 
                 get weekSchedule() {
-                    const dayOrder = @js(\App\Enums\DayOfWeek::list());
+                    const dayOrder = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
                     return this.jadwalEvents
                         .map(e => ({
                             title: e.title,

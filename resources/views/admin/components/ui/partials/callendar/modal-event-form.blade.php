@@ -1,7 +1,11 @@
 <x-ui.modal id="modal-event-form" size="md" :closeButton="true">
    <x-slot:title>
         <div class="flex  items-center gap-2 w-full">
-            <x-heroicon-o-calendar-days class="h-8 w-8 text-primary/80" />
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-primary/80" fill="none"
+                viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M8 7V3m8 4V3M4 11h16M5 5h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z" />
+            </svg>
             <h3 class=" font-bold text-xl ">Event <span x-text="modalDate"></span></h3>
             {{-- <div class="w-full"></div> --}}
 

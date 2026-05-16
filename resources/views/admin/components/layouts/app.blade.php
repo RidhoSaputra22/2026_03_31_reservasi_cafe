@@ -9,11 +9,11 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <!-- PWA Meta Tags -->
-    <meta name="theme-color" content="#1e40af">
+    <meta name="theme-color" content="#6f4b32">
     <link rel="apple-touch-icon" href="{{ asset('icons/icon-192x192.png') }}">
     <link rel="manifest" href="{{ asset('build/manifest.webmanifest') }}">
 
-    <title>{{ $title ?? 'Dashboard' }} - {{ config('app.name', 'SIM Penugasan Kuliah') }}</title>
+    <title>{{ $title ?? 'Dashboard' }} - {{ config('app.name', 'AMIKOSPACE Admin') }}</title>
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
@@ -21,10 +21,7 @@
 
     <script>
         (function() {
-            const savedTheme = localStorage.getItem('theme');
-            const theme = savedTheme ?
-                savedTheme :
-                (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            const theme = localStorage.getItem('admin-theme') || 'light';
 
             document.documentElement.setAttribute('data-theme', theme);
         })();
@@ -36,7 +33,16 @@
     @stack('styles')
 </head>
 
-<body class="min-h-screen bg-base-200" x-data="{ sidebarOpen: true, sidebarMobileOpen: false }">
+<body class="admin-shell" x-data="{
+    sidebarOpen: true,
+    sidebarMobileOpen: false,
+    adminTheme: document.documentElement.getAttribute('data-theme') || 'light',
+    toggleTheme() {
+        this.adminTheme = this.adminTheme === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', this.adminTheme);
+        localStorage.setItem('admin-theme', this.adminTheme);
+    }
+}">
 
     {{-- Mobile sidebar overlay --}}
     <div x-show="sidebarMobileOpen" x-transition:enter="transition-opacity ease-linear duration-300"

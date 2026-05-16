@@ -1,5 +1,4 @@
 @php
-    $tugas = request()->route('tugas');
     $navigationItems = [
         [
             'label' => 'Dashboard',
@@ -8,309 +7,149 @@
             'active' => request()->routeIs('dashboard'),
         ],
         [
-            'label' => 'Jadwal Kuliah',
-            'href' => route('mata-kuliah.index'),
-            'icon' => 'mata-kuliah',
-            'active' => request()->routeIs('mata-kuliah.*'),
+            'label' => 'Reservasi',
+            'href' => route('admin.reservations.index'),
+            'icon' => 'calendar',
+            'active' => request()->routeIs('admin.reservations.*'),
         ],
         [
-            'label' => 'Tugas',
-            'href' => route('tugas.index'),
-            'icon' => 'tugas',
-            'active' => request()->routeIs('tugas.*') || request()->routeIs('todo.*'),
+            'label' => 'Menu',
+            'href' => route('admin.menu.index'),
+            'icon' => 'menu',
+            'active' => request()->routeIs('admin.menu.*'),
         ],
         [
-            'label' => 'Kalender',
-            'href' => route('kalender.index'),
-            'icon' => 'kalender',
-            'active' => request()->routeIs('kalender.*') || request()->routeIs('events.*'),
+            'label' => 'Meja',
+            'href' => route('admin.tables.index'),
+            'icon' => 'table',
+            'active' => request()->routeIs('admin.tables.*'),
         ],
         [
-            'label' => 'Statistik',
-            'href' => route('statistik.index'),
-            'icon' => 'statistik',
-            'active' => request()->routeIs('statistik.*'),
+            'label' => 'Pembayaran',
+            'href' => route('admin.payments.index'),
+            'icon' => 'payment',
+            'active' => request()->routeIs('admin.payments.*'),
+        ],
+        [
+            'label' => 'Profil',
+            'href' => route('admin.profile.index'),
+            'icon' => 'store',
+            'active' => request()->routeIs('admin.profile.*'),
         ],
     ];
 
-    $fab = null;
-
-    if (request()->routeIs('dashboard')) {
-        $fab = [
-            'variant' => 'flower',
-            'triggerIcon' => 'dashboard',
-            'triggerLabel' => 'Buka navigasi dashboard',
-            'triggerClass' => 'btn btn-circle btn-lg btn-primary shadow-xl',
-            'mainActionClass' => 'fab-main-action btn btn-circle btn-lg btn-primary shadow-xl',
-            'items' => [
-                [
-                    'label' => 'Jadwal Kuliah',
-                    'href' => route('mata-kuliah.index'),
-                    'icon' => 'mata-kuliah',
-                    'buttonClass' => 'btn btn-circle btn-lg btn-secondary shadow-lg',
-                ],
-                [
-                    'label' => 'Tugas',
-                    'href' => route('tugas.index'),
-                    'icon' => 'tugas',
-                    'buttonClass' => 'btn btn-circle btn-lg btn-warning shadow-lg',
-                ],
-                [
-                    'label' => 'Kalender',
-                    'href' => route('kalender.index'),
-                    'icon' => 'kalender',
-                    'buttonClass' => 'btn btn-circle btn-lg btn-info shadow-lg',
-                ],
-                [
-                    'label' => 'Statistik',
-                    'href' => route('statistik.index'),
-                    'icon' => 'statistik',
-                    'buttonClass' => 'btn btn-circle btn-lg btn-accent shadow-lg',
-                ],
+    $items = match (true) {
+        request()->routeIs('dashboard') => [
+            [
+                'label' => 'Lihat Reservasi Hari Ini',
+                'description' => 'Fokus ke booking dan tamu yang datang hari ini.',
+                'href' => route('admin.reservations.index', ['date' => now()->toDateString()]),
+                'icon' => 'calendar',
+                'buttonClass' => 'btn btn-circle btn-lg btn-primary shadow-lg',
             ],
-        ];
-    } elseif (request()->routeIs('mata-kuliah.show')) {
-        $fab = null;
-    } elseif (request()->routeIs('mata-kuliah.*')) {
-        $fab = [
-            'variant' => '',
-            'triggerIcon' => 'mata-kuliah',
-            'triggerLabel' => 'Buka aksi jadwal kuliah',
-            'triggerClass' => 'btn btn-circle btn-lg btn-secondary shadow-xl',
-            'mainActionClass' => 'fab-main-action btn btn-circle btn-lg btn-secondary shadow-xl',
-            'items' => [
-                [
-                    'label' => 'Tambah Mata Kuliah',
-                    'href' => route('mata-kuliah.create'),
-                    'icon' => 'plus',
-                    'buttonClass' => 'btn btn-circle btn-lg btn-primary shadow-lg',
-                ],
-                [
-                    'label' => 'Import Mata Kuliah',
-                    'href' => route('import-export.import', 'mata-kuliah'),
-                    'icon' => 'import',
-                    'buttonClass' => 'btn btn-circle btn-lg btn-info shadow-lg',
-                ],
-                [
-                    'label' => 'Export Mata Kuliah',
-                    'href' => route('import-export.export', 'mata-kuliah'),
-                    'icon' => 'export',
-                    'buttonClass' => 'btn btn-circle btn-lg btn-success shadow-lg',
-                ],
-                [
-                    'label' => 'Download Template',
-                    'href' => route('import-export.template', 'mata-kuliah'),
-                    'icon' => 'template',
-                    'buttonClass' => 'btn btn-circle btn-lg btn-accent shadow-lg',
-                ],
+            [
+                'label' => 'Tambah Menu Baru',
+                'description' => 'Masuk ke panel menu untuk menambah item cafe.',
+                'href' => route('admin.menu.index') . '#form-menu',
+                'icon' => 'plus',
+                'buttonClass' => 'btn btn-circle btn-lg btn-success shadow-lg',
             ],
-        ];
-    } elseif (request()->routeIs('tugas.show') && $tugas) {
-        $fab = [
-            'variant' => '',
-            'triggerIcon' => 'tugas',
-            'triggerLabel' => 'Buka aksi detail tugas',
-            'triggerClass' => 'btn btn-circle btn-lg btn-warning shadow-xl',
-            'mainActionClass' => 'fab-main-action btn btn-circle btn-lg btn-warning shadow-xl',
-            'items' => [
-                [
-                    'label' => 'Kembali ke Daftar Tugas',
-                    'href' => route('tugas.index'),
-                    'icon' => 'back',
-                    'buttonClass' => 'btn btn-circle btn-lg btn-neutral shadow-lg',
-                ],
-                [
-                    'label' => 'Edit Tugas',
-                    'href' => route('tugas.edit', $tugas),
-                    'icon' => 'edit',
-                    'buttonClass' => 'btn btn-circle btn-lg btn-primary shadow-lg',
-                ],
-                [
-                    'label' => 'Tambah Checklist',
-                    'href' => route('todo.create', ['tugas_id' => $tugas->id]),
-                    'icon' => 'checklist',
-                    'buttonClass' => 'btn btn-circle btn-lg btn-secondary shadow-lg',
-                ],
-                [
-                    'label' => 'Buka Kalender',
-                    'href' => route('kalender.index'),
-                    'icon' => 'kalender',
-                    'buttonClass' => 'btn btn-circle btn-lg btn-info shadow-lg',
-                ],
+            [
+                'label' => 'Cek Pembayaran',
+                'description' => 'Pantau pembayaran pending dan verifikasi.',
+                'href' => route('admin.payments.index'),
+                'icon' => 'payment',
+                'buttonClass' => 'btn btn-circle btn-lg btn-warning shadow-lg',
             ],
-        ];
-    } elseif (request()->routeIs('tugas.*')) {
-        $fab = [
-            'variant' => '',
-            'triggerIcon' => 'tugas',
-            'triggerLabel' => 'Buka aksi tugas',
-            'triggerClass' => 'btn btn-circle btn-lg btn-warning shadow-xl',
-            'mainActionClass' => 'fab-main-action btn btn-circle btn-lg btn-warning shadow-xl',
-            'items' => [
-                [
-                    'label' => 'Tambah Tugas',
-                    'href' => route('tugas.create'),
-                    'icon' => 'plus',
-                    'buttonClass' => 'btn btn-circle btn-lg btn-primary shadow-lg',
-                ],
-                [
-                    'label' => 'Import Tugas',
-                    'href' => route('import-export.import', 'tugas'),
-                    'icon' => 'import',
-                    'buttonClass' => 'btn btn-circle btn-lg btn-info shadow-lg',
-                ],
-                [
-                    'label' => 'Export Tugas',
-                    'href' => route('import-export.export', 'tugas'),
-                    'icon' => 'export',
-                    'buttonClass' => 'btn btn-circle btn-lg btn-success shadow-lg',
-                ],
-                [
-                    'label' => 'Buka Kalender',
-                    'href' => route('kalender.index'),
-                    'icon' => 'kalender',
-                    'buttonClass' => 'btn btn-circle btn-lg btn-accent shadow-lg',
-                ],
+        ],
+        request()->routeIs('admin.reservations.*') => [
+            [
+                'label' => 'Pembayaran',
+                'description' => 'Buka panel pembayaran reservasi.',
+                'href' => route('admin.payments.index'),
+                'icon' => 'payment',
+                'buttonClass' => 'btn btn-circle btn-lg btn-warning shadow-lg',
             ],
-        ];
-    } elseif (request()->routeIs('kalender.*')) {
-        $fab = [
-            'variant' => '',
-            'triggerIcon' => 'kalender',
-            'triggerLabel' => 'Buka aksi kalender',
-            'triggerClass' => 'btn btn-circle btn-lg btn-info shadow-xl',
-            'mainActionClass' => 'fab-main-action btn btn-circle btn-lg btn-info shadow-xl',
-            'items' => [
-                [
-                    'label' => 'Tambah Event',
-                    'href' => route('events.create'),
-                    'icon' => 'plus',
-                    'buttonClass' => 'btn btn-circle btn-lg btn-primary shadow-lg',
-                ],
-                [
-                    'label' => 'Kelola Event',
-                    'href' => route('events.index'),
-                    'icon' => 'list',
-                    'buttonClass' => 'btn btn-circle btn-lg btn-secondary shadow-lg',
-                ],
-                [
-                    'label' => 'Tambah Tugas',
-                    'href' => route('tugas.create'),
-                    'icon' => 'tugas',
-                    'buttonClass' => 'btn btn-circle btn-lg btn-warning shadow-lg',
-                ],
-                [
-                    'label' => 'Jadwal Kuliah',
-                    'href' => route('mata-kuliah.index'),
-                    'icon' => 'mata-kuliah',
-                    'buttonClass' => 'btn btn-circle btn-lg btn-accent shadow-lg',
-                ],
+            [
+                'label' => 'Slot Reservasi',
+                'description' => 'Kelola slot waktu yang dapat dipilih pelanggan.',
+                'href' => route('admin.slots.index'),
+                'icon' => 'clock',
+                'buttonClass' => 'btn btn-circle btn-lg btn-info shadow-lg',
             ],
-        ];
-    } elseif (request()->routeIs('events.*')) {
-        $fab = [
-            'variant' => '',
-            'triggerIcon' => 'kalender',
-            'triggerLabel' => 'Buka aksi event',
-            'triggerClass' => 'btn btn-circle btn-lg btn-info shadow-xl',
-            'mainActionClass' => 'fab-main-action btn btn-circle btn-lg btn-info shadow-xl',
-            'items' => [
-                [
-                    'label' => 'Buka Kalender',
-                    'href' => route('kalender.index'),
-                    'icon' => 'kalender',
-                    'buttonClass' => 'btn btn-circle btn-lg btn-primary shadow-lg',
-                ],
-                [
-                    'label' => 'Tambah Event',
-                    'href' => route('events.create'),
-                    'icon' => 'plus',
-                    'buttonClass' => 'btn btn-circle btn-lg btn-secondary shadow-lg',
-                ],
-                [
-                    'label' => 'Daftar Event',
-                    'href' => route('events.index'),
-                    'icon' => 'list',
-                    'buttonClass' => 'btn btn-circle btn-lg btn-accent shadow-lg',
-                ],
-                [
-                    'label' => 'Tambah Tugas',
-                    'href' => route('tugas.create'),
-                    'icon' => 'tugas',
-                    'buttonClass' => 'btn btn-circle btn-lg btn-warning shadow-lg',
-                ],
+        ],
+        request()->routeIs('admin.menu.*') => [
+            [
+                'label' => 'Tambah Menu',
+                'description' => 'Lompat ke form menu baru.',
+                'href' => route('admin.menu.index') . '#form-menu',
+                'icon' => 'plus',
+                'buttonClass' => 'btn btn-circle btn-lg btn-success shadow-lg',
             ],
-        ];
-    } elseif (request()->routeIs('statistik.*')) {
-        $fab = [
-            'variant' => '',
-            'triggerIcon' => 'statistik',
-            'triggerLabel' => 'Buka aksi statistik',
-            'triggerClass' => 'btn btn-circle btn-lg btn-accent shadow-xl',
-            'mainActionClass' => 'fab-main-action btn btn-circle btn-lg btn-accent shadow-xl',
-            'panelTitle' => 'Pusat kontrol statistik',
-            'panelDescription' => 'Lompat ke bagian penting di halaman ini atau pindah ke modul lain tanpa kehilangan konteks.',
-            'items' => [
-                [
-                    'label' => 'Ringkasan utama',
-                    'description' => 'Lihat kartu total tugas dan skor produktivitas.',
-                    'href' => route('statistik.index') . '#summary-stats',
-                    'icon' => 'dashboard',
-                    'buttonClass' => 'btn btn-circle btn-lg btn-primary shadow-lg',
-                ],
-                [
-                    'label' => 'Grafik analisis',
-                    'description' => 'Buka distribusi prioritas, status, dan aktivitas mingguan.',
-                    'href' => route('statistik.index') . '#chart-overview',
-                    'icon' => 'statistik',
-                    'buttonClass' => 'btn btn-circle btn-lg btn-accent shadow-lg',
-                ],
-                [
-                    'label' => 'Deadline terdekat',
-                    'description' => 'Fokus ke daftar deadline 14 hari ke depan.',
-                    'href' => route('statistik.index') . '#deadline-timeline',
-                    'icon' => 'kalender',
-                    'buttonClass' => 'btn btn-circle btn-lg btn-info shadow-lg',
-                ],
-                [
-                    'label' => 'Progress tugas',
-                    'description' => 'Tinjau rasio todo dan progress keseluruhan.',
-                    'href' => route('statistik.index') . '#overall-progress',
-                    'icon' => 'tugas',
-                    'buttonClass' => 'btn btn-circle btn-lg btn-warning shadow-lg',
-                ],
+            [
+                'label' => 'Profil Cafe',
+                'description' => 'Atur informasi cafe yang menjadi induk menu.',
+                'href' => route('admin.profile.index'),
+                'icon' => 'store',
+                'buttonClass' => 'btn btn-circle btn-lg btn-primary shadow-lg',
             ],
-        ];
-    }
+        ],
+        request()->routeIs('admin.tables.*') => [
+            [
+                'label' => 'Tambah Meja',
+                'description' => 'Lompat ke form master meja dan area.',
+                'href' => route('admin.tables.index') . '#form-meja',
+                'icon' => 'plus',
+                'buttonClass' => 'btn btn-circle btn-lg btn-success shadow-lg',
+            ],
+            [
+                'label' => 'Reservasi',
+                'description' => 'Lihat dampak meja terhadap booking aktif.',
+                'href' => route('admin.reservations.index'),
+                'icon' => 'calendar',
+                'buttonClass' => 'btn btn-circle btn-lg btn-primary shadow-lg',
+            ],
+        ],
+        default => [
+            [
+                'label' => 'Dashboard',
+                'description' => 'Kembali ke ringkasan operasional cafe.',
+                'href' => route('dashboard'),
+                'icon' => 'dashboard',
+                'buttonClass' => 'btn btn-circle btn-lg btn-primary shadow-lg',
+            ],
+            [
+                'label' => 'Lihat Website',
+                'description' => 'Buka halaman pelanggan AMIKOSPACE.',
+                'href' => route('landing'),
+                'icon' => 'external',
+                'buttonClass' => 'btn btn-circle btn-lg btn-neutral shadow-lg',
+            ],
+        ],
+    };
 @endphp
 
-@if ($fab && !empty($fab['items']))
+@if (!empty($items))
     <div class="h-24 sm:h-28" aria-hidden="true"></div>
 
-    <x-ui.fab :trigger-aria-label="$fab['triggerLabel']" :main-action-aria-label="'Tutup menu aksi cepat'"
-        :trigger-class="$fab['triggerClass']" :main-action-class="$fab['mainActionClass']"
-        :panel-title="$fab['panelTitle'] ?? 'Aksi cepat'"
-        :panel-description="$fab['panelDescription'] ?? 'Pilih aksi yang paling relevan untuk halaman yang sedang Anda buka.'">
+    <x-ui.fab trigger-aria-label="Buka aksi cepat admin" main-action-aria-label="Tutup aksi cepat"
+        trigger-class="btn btn-circle btn-lg btn-primary shadow-xl" main-action-class="fab-main-action btn btn-circle btn-lg btn-neutral shadow-xl"
+        panel-title="Aksi cepat" panel-description="Pindah panel atau lakukan tugas admin yang paling sering dipakai.">
         <x-slot:trigger>
-            <x-ui.fab.icon :name="$fab['triggerIcon']" class="h-6 w-6" />
+            <x-ui.fab.icon name="dashboard" class="h-6 w-6" />
         </x-slot:trigger>
 
         <x-slot:mainAction>
             <x-ui.fab.icon name="close" class="h-6 w-6" />
         </x-slot:mainAction>
 
-
-
-        @foreach ($fab['items'] as $item)
+        @foreach ($items as $item)
             <x-ui.fab.item :tooltip="$item['label']" :description="$item['description'] ?? null"
                 :href="$item['href']" :button-class="$item['buttonClass']" :active="$item['active'] ?? false">
                 <x-ui.fab.icon :name="$item['icon']" class="h-5 w-5" />
             </x-ui.fab.item>
         @endforeach
 
-        @if (!request()->routeIs('dashboard'))
-            <x-ui.fab.nested-nav :items="$navigationItems" />
-        @endif
-
+        <x-ui.fab.nested-nav :items="$navigationItems" label="Navigasi panel" description="Pindah ke modul admin utama." />
     </x-ui.fab>
 @endif

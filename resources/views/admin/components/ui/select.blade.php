@@ -108,7 +108,12 @@
                             class="input input-bordered w-full pr-8 {{ $searchInputSizeClass }}"
                             @click.stop
                         >
-                        <x-heroicon-s-magnifying-glass class="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 text-base-content/60" />
+                        <svg xmlns="http://www.w3.org/2000/svg"
+                            class="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 text-base-content/60"
+                            fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="m21 21-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" />
+                        </svg>
                     </div>
                 </div>
 

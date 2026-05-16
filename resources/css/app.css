@@ -1,4 +1,7 @@
 @import 'tailwindcss';
+@plugin 'daisyui' {
+    themes: light --default, dark --prefersdark, coffee;
+}
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
@@ -25,13 +28,60 @@
         display: none !important;
     }
 
-    body {
+    body:not(.admin-shell) {
         background-color: var(--color-coffee-50);
         color: var(--color-coffee-900);
     }
 }
 
 @layer components {
+    .admin-shell {
+        @apply min-h-screen bg-base-200 text-base-content antialiased;
+        background:
+            radial-gradient(circle at 12% 0%, color-mix(in oklab, var(--color-primary) 12%, transparent), transparent 26rem),
+            radial-gradient(circle at 95% 8%, color-mix(in oklab, var(--color-accent) 10%, transparent), transparent 30rem),
+            var(--color-base-200);
+    }
+
+    .admin-shell .navbar,
+    .admin-shell aside,
+    .admin-shell .card,
+    .admin-shell .modal-box,
+    .admin-shell .dropdown-content {
+        @apply border-base-300/60 text-base-content;
+    }
+
+    .admin-shell .card {
+        @apply border border-base-300/60 shadow-lg;
+    }
+
+    .admin-shell .input,
+    .admin-shell .textarea,
+    .admin-shell .select,
+    .admin-shell .file-input {
+        @apply bg-base-100 text-base-content placeholder:text-base-content/40;
+    }
+
+    .admin-shell .label-text,
+    .admin-shell .label-text-alt,
+    .admin-shell .table,
+    .admin-shell .menu,
+    .admin-shell .breadcrumbs {
+        @apply text-base-content;
+    }
+
+    .admin-shell .menu-title {
+        @apply text-base-content/60;
+    }
+
+    .admin-shell .table :where(thead th) {
+        @apply text-base-content/70;
+    }
+
+    .admin-shell .table-zebra tbody tr:nth-child(even) {
+        background-color: color-mix(in oklab, var(--color-base-200) 55%, transparent);
+    }
+
     .panel-surface {
         @apply rounded-[2rem] border border-coffee-100 bg-white;
         box-shadow: 0 24px 72px rgba(22, 16, 13, 0.08);

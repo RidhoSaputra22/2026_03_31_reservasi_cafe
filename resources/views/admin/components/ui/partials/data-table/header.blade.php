@@ -21,7 +21,12 @@
 
     <form method="GET" action="{{ route(Route::currentRouteName()) }}#{{ Str::slug($title) }}" class="flex flex-col gap-2 lg:flex-row lg:items-center">
         <div class="relative w-full sm:min-w-64 flex-1">
-            <x-heroicon-s-magnifying-glass class="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/60 z-10 w-4 h-4" />
+            <svg xmlns="http://www.w3.org/2000/svg"
+                class="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/60 z-10 w-4 h-4"
+                fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="m21 21-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" />
+            </svg>
 
             <x-ui.input
                 size="sm"
