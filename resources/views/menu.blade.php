@@ -75,7 +75,7 @@
 @endphp
 <main class="min-h-screen pt-28">
   <section x-data='menuCatalog(@js($menuItems))' class="mx-auto max-w-7xl px-5 py-12 lg:px-8">
-    <div class="flex flex-col justify-between gap-6 md:flex-row md:items-end">
+    <div class="flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
       <div>
         <p class="text-sm font-black uppercase tracking-[0.28em] text-coffee-400">Menu Page</p>
         <h1 class="mt-4 text-4xl font-light tracking-wide text-black">Pilih menu untuk pre-order.</h1>
@@ -84,27 +84,30 @@
         </p>
       </div>
 
-      <div class="flex gap-2 rounded-full bg-white p-2">
+      <div class="inline-flex w-fit max-w-full items-center gap-2 rounded-full border border-coffee-100 bg-white p-2 shadow-sm">
         <button
           type="button"
-          class="rounded-full px-5 py-2 text-sm font-bold transition"
-          :class="filterButtonClass('all')"
+          class="whitespace-nowrap rounded-full px-5 py-2 text-sm font-bold transition"
+          :class="activeFilter === 'all' ? 'bg-black text-white' : 'text-coffee-700 hover:bg-coffee-50'"
+          :aria-pressed="(activeFilter === 'all').toString()"
           @click="setFilter('all')"
         >
           All
         </button>
         <button
           type="button"
-          class="rounded-full px-5 py-2 text-sm font-bold transition"
-          :class="filterButtonClass('drink')"
+          class="whitespace-nowrap rounded-full px-5 py-2 text-sm font-bold transition"
+          :class="activeFilter === 'drink' ? 'bg-black text-white' : 'text-coffee-700 hover:bg-coffee-50'"
+          :aria-pressed="(activeFilter === 'drink').toString()"
           @click="setFilter('drink')"
         >
           Drink
         </button>
         <button
           type="button"
-          class="rounded-full px-5 py-2 text-sm font-bold transition"
-          :class="filterButtonClass('pastry')"
+          class="whitespace-nowrap rounded-full px-5 py-2 text-sm font-bold transition"
+          :class="activeFilter === 'pastry' ? 'bg-black text-white' : 'text-coffee-700 hover:bg-coffee-50'"
+          :aria-pressed="(activeFilter === 'pastry').toString()"
           @click="setFilter('pastry')"
         >
           Pastry

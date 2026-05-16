@@ -306,11 +306,6 @@ document.addEventListener('alpine:init', () => {
         isVisible(item) {
             return this.activeFilter === 'all' || item.category === this.activeFilter;
         },
-        filterButtonClass(filter) {
-            return this.activeFilter === filter
-                ? 'bg-black text-white'
-                : 'text-coffee-700 hover:bg-coffee-50';
-        },
         addItem(item) {
             addToCart(item);
         },
