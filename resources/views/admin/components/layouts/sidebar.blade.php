@@ -55,7 +55,7 @@
 
             @foreach ($items as $item)
                 <li>
-                    <a href="{{ route($item['route']) }}" class="{{ request()->routeIs($item['active']) ? 'active' : '' }}">
+                    <a href="{{ route($item['route']) }}" class="{{ request()->routeIs($item['active']) ? 'bg-primary text-primary-content' : '' }}">
                         <x-ui.fab.icon :name="$item['icon']" class="h-5 w-5" />
                         {{ $item['label'] }}
                     </a>
