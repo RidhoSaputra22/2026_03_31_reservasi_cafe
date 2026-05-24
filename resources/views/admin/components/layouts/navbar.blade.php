@@ -4,6 +4,8 @@
 
 @props(['title' => 'Dashboard'])
 
+@php($adminUser = auth()->user())
+
 <header class="navbar bg-base-100 shadow-sm sticky top-0 z-30 px-4 lg:px-6">
     <div class="flex justify-center items-center gap-2">
         <x-ui.button type="ghost" size="sm" :isSubmit="false" class="btn-square lg:hidden"
@@ -39,15 +41,15 @@
 
         <div class="dropdown dropdown-end">
             <label tabindex="0" class="btn btn-ghost btn-sm gap-2">
-                <x-ui.avatar :name="auth()->user()->name ?? 'Admin Cafe'" size="sm" />
-                <span class="hidden sm:inline">Admin</span>
+                <x-ui.avatar :name="$adminUser?->name ?? 'Admin Cafe'" size="sm" />
+                <span class="hidden sm:inline">{{ $adminUser?->role?->label() ?? 'Admin' }}</span>
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                 </svg>
             </label>
             <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box w-56 shadow-lg mt-2 p-2">
                 <li class="menu-title">
-                    <span class="text-xs text-base-content/60">{{ auth()->user()->email ?? 'admin@amikospace.test' }}</span>
+                    <span class="text-xs text-base-content/60">{{ $adminUser?->email ?? 'admin@amikospace.test' }}</span>
                 </li>
                 <li>
                     <a href="{{ route('admin.profile.index') }}">
@@ -60,6 +62,17 @@
                         <x-ui.fab.icon name="external" class="h-4 w-4" />
                         Lihat Website
                     </a>
+                </li>
+                <li>
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+                        <button type="submit" class="w-full justify-start">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12H3m4-4-4 4 4 4m5-12h5a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-5" />
+                            </svg>
+                            Logout
+                        </button>
+                    </form>
                 </li>
             </ul>
         </div>

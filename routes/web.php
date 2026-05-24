@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminPanelController;
+use App\Http\Controllers\Auth\AuthenticationController;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'welcome')->name('landing');
@@ -8,7 +9,17 @@ Route::view('/menu', 'menu')->name('menu');
 Route::view('/cart', 'cart')->name('cart');
 Route::view('/about', 'about')->name('about');
 
-Route::prefix('admin')->controller(AdminPanelController::class)->group(function (): void {
+Route::controller(AuthenticationController::class)->group(function (): void {
+    Route::get('/login', 'showUserLogin')->name('login');
+    Route::post('/login', 'loginUser')->name('login.store');
+    Route::get('/register', 'showUserRegister')->name('register');
+    Route::post('/register', 'registerUser')->name('register.store');
+    Route::get('/admin/login', 'showAdminLogin')->name('admin.login');
+    Route::post('/admin/login', 'loginAdmin')->name('admin.login.store');
+    Route::post('/logout', 'logout')->name('logout');
+});
+
+Route::prefix('admin')->middleware('admin.access')->controller(AdminPanelController::class)->group(function (): void {
     Route::get('/', 'dashboard')->name('dashboard');
     Route::get('/global-search', 'globalSearch')->name('admin.global-search');
 

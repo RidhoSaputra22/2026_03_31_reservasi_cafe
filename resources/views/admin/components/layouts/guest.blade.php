@@ -8,7 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>{{ $title ?? 'Login' }} - {{ config('app.name', 'SIM Penugasan Kuliah') }}</title>
+    <title>{{ $title ?? 'Login' }} - {{ config('app.name', 'AMIKOSPACE Admin') }}</title>
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
@@ -20,7 +20,7 @@
     @stack('styles')
 </head>
 
-<body class="min-h-screen bg-base-200 flex items-center justify-center">
+<body class="admin-shell min-h-screen">
 
     {{ $slot }}
 

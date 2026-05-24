@@ -47,6 +47,32 @@
                     @endif
                 </a>
             @endforeach
+
+            @auth
+                @php($accountRoute = auth()->user()->isAdmin() || auth()->user()->isStaff() ? route('dashboard') : route('landing'))
+                <a
+                    href="{{ $accountRoute }}"
+                    class="rounded-full px-4 py-2 text-sm font-semibold tracking-wide transition {{ $isLanding ? 'text-white' : 'text-black' }}"
+                >
+                    Akun
+                </a>
+                <form method="POST" action="{{ route('logout') }}">
+                    @csrf
+                    <button
+                        type="submit"
+                        class="rounded-full px-4 py-2 text-sm font-semibold tracking-wide transition {{ $isLanding ? 'text-white hover:bg-white/10' : 'text-black hover:bg-coffee-50' }}"
+                    >
+                        Logout
+                    </button>
+                </form>
+            @else
+                <a
+                    href="{{ route('login') }}"
+                    class="rounded-full px-4 py-2 text-sm font-semibold tracking-wide transition {{ $isLanding ? 'text-white' : 'text-black' }} {{ $activePage === 'login' ? 'underline' : '' }}"
+                >
+                    Login
+                </a>
+            @endauth
         </div>
     </nav>
 
@@ -70,6 +96,34 @@
                     @endif
                 </a>
             @endforeach
+
+            @auth
+                @php($accountRoute = auth()->user()->isAdmin() || auth()->user()->isStaff() ? route('dashboard') : route('landing'))
+                <a
+                    href="{{ $accountRoute }}"
+                    class="rounded-2xl px-4 py-3 text-left font-semibold text-coffee-50 hover:bg-white/10"
+                    @click="close()"
+                >
+                    {{ auth()->user()->isAdmin() || auth()->user()->isStaff() ? 'Dashboard Admin' : 'Akun Saya' }}
+                </a>
+                <form method="POST" action="{{ route('logout') }}">
+                    @csrf
+                    <button
+                        type="submit"
+                        class="w-full rounded-2xl px-4 py-3 text-left font-semibold text-coffee-50 hover:bg-white/10"
+                    >
+                        Logout
+                    </button>
+                </form>
+            @else
+                <a
+                    href="{{ route('login') }}"
+                    class="rounded-2xl px-4 py-3 text-left font-semibold text-coffee-50 hover:bg-white/10"
+                    @click="close()"
+                >
+                    Login
+                </a>
+            @endauth
         </div>
     </div>
 </header>
