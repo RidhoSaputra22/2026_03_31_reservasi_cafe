@@ -49,10 +49,11 @@
             @endforeach
 
             @auth
-                @php($accountRoute = auth()->user()->isAdmin() || auth()->user()->isStaff() ? route('dashboard') : route('landing'))
+                @php($isAccountActive = $activePage === 'account')
+                @php($accountRoute = auth()->user()->isAdmin() || auth()->user()->isStaff() ? route('dashboard') : route('customer.profile'))
                 <a
                     href="{{ $accountRoute }}"
-                    class="rounded-full px-4 py-2 text-sm font-semibold tracking-wide transition {{ $isLanding ? 'text-white' : 'text-black' }}"
+                    class="rounded-full px-4 py-2 text-sm font-semibold tracking-wide transition {{ $isLanding ? 'text-white' : 'text-black' }} {{ $isAccountActive ? 'underline' : '' }}"
                 >
                     Akun
                 </a>
@@ -98,10 +99,10 @@
             @endforeach
 
             @auth
-                @php($accountRoute = auth()->user()->isAdmin() || auth()->user()->isStaff() ? route('dashboard') : route('landing'))
+                @php($accountRoute = auth()->user()->isAdmin() || auth()->user()->isStaff() ? route('dashboard') : route('customer.profile'))
                 <a
                     href="{{ $accountRoute }}"
-                    class="rounded-2xl px-4 py-3 text-left font-semibold text-coffee-50 hover:bg-white/10"
+                    class="rounded-2xl px-4 py-3 text-left font-semibold text-coffee-50 hover:bg-white/10 {{ $activePage === 'account' ? 'bg-white/10' : '' }}"
                     @click="close()"
                 >
                     {{ auth()->user()->isAdmin() || auth()->user()->isStaff() ? 'Dashboard Admin' : 'Akun Saya' }}

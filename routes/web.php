@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AdminPanelController;
 use App\Http\Controllers\Auth\AuthenticationController;
+use App\Http\Controllers\Customer\ProfileController;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'welcome')->name('landing');
@@ -17,6 +18,10 @@ Route::controller(AuthenticationController::class)->group(function (): void {
     Route::get('/admin/login', 'showAdminLogin')->name('admin.login');
     Route::post('/admin/login', 'loginAdmin')->name('admin.login.store');
     Route::post('/logout', 'logout')->name('logout');
+});
+
+Route::middleware('auth')->group(function (): void {
+    Route::get('/akun', [ProfileController::class, 'show'])->name('customer.profile');
 });
 
 Route::prefix('admin')->middleware('admin.access')->controller(AdminPanelController::class)->group(function (): void {

@@ -226,6 +226,115 @@ function renderReservationSummary(reservation) {
   `;
 }
 
+function formatDateLabel(value) {
+    if (!value) {
+        return '-';
+    }
+
+    const date = new Date(`${value}T00:00:00`);
+
+    if (Number.isNaN(date.getTime())) {
+        return value;
+    }
+
+    return new Intl.DateTimeFormat('id-ID', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+    }).format(date);
+}
+
+function localReservationReminder(reservation) {
+    if (!reservation?.date || !reservation?.time) {
+        return 'Jadwal belum lengkap';
+    }
+
+    const scheduledAt = new Date(`${reservation.date}T${reservation.time}`);
+
+    if (Number.isNaN(scheduledAt.getTime())) {
+        return 'Jadwal belum lengkap';
+    }
+
+    const diffMs = scheduledAt.getTime() - Date.now();
+
+    if (diffMs < 0) {
+        return 'Jadwal reservasi sudah lewat';
+    }
+
+    const diffHours = Math.ceil(diffMs / (1000 * 60 * 60));
+
+    if (diffHours <= 24) {
+        return `Datang dalam ${diffHours} jam lagi`;
+    }
+
+    const diffDays = Math.ceil(diffHours / 24);
+
+    return `Datang dalam ${diffDays} hari lagi`;
+}
+
+function renderProfileLocalReservation() {
+    const wrapper = document.querySelector('[data-profile-local-reservation]');
+
+    if (!wrapper) {
+        return;
+    }
+
+    let reservation = null;
+
+    try {
+        reservation = JSON.parse(localStorage.getItem(RESERVATION_KEY) || 'null');
+    } catch (error) {
+        reservation = null;
+    }
+
+    if (!reservation) {
+        return;
+    }
+
+    const itemCount = reservation.items?.reduce((sum, item) => sum + Number(item.qty || 0), 0) || 0;
+    const items = reservation.items?.length
+        ? reservation.items
+              .map(
+                  (item) =>
+                      `<li>${escapeHtml(item.name)} x ${Number(item.qty || 0)} - ${rupiah(Number(item.price || 0) * Number(item.qty || 0))}</li>`,
+              )
+              .join('')
+        : '<li>Tidak ada pre-order menu.</li>';
+
+    wrapper.innerHTML = `
+    <div class="panel-surface p-6 sm:p-8">
+      <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+        <div>
+          <p class="text-sm font-black uppercase tracking-[0.2em] text-coffee-400">Reservasi Browser</p>
+          <h2 class="mt-2 text-2xl font-black text-black">Reservasi terakhir di perangkat ini</h2>
+        </div>
+        <span class="w-fit rounded-full bg-coffee-900 px-4 py-2 text-xs font-black uppercase tracking-[0.14em] text-white">${escapeHtml(reservation.code)}</span>
+      </div>
+
+      <div class="mt-6 grid gap-5 lg:grid-cols-[1fr_1fr]">
+        <article class="rounded-[1.5rem] bg-coffee-50 p-5">
+          <p class="text-sm font-black text-black">${escapeHtml(localReservationReminder(reservation))}</p>
+          <dl class="mt-4 grid gap-3 text-sm text-coffee-700 sm:grid-cols-2">
+            <div><dt>Tanggal</dt><dd class="mt-1 font-black text-coffee-900">${escapeHtml(formatDateLabel(reservation.date))}</dd></div>
+            <div><dt>Jam</dt><dd class="mt-1 font-black text-coffee-900">${escapeHtml(reservation.time || '-')}</dd></div>
+            <div><dt>Nama</dt><dd class="mt-1 font-black text-coffee-900">${escapeHtml(reservation.guestName || '-')}</dd></div>
+            <div><dt>Jumlah</dt><dd class="mt-1 font-black text-coffee-900">${escapeHtml(reservation.guests || '-')} orang</dd></div>
+          </dl>
+        </article>
+
+        <article class="rounded-[1.5rem] border border-coffee-100 p-5">
+          <div class="flex items-center justify-between gap-4">
+            <p class="text-sm font-black text-black">Pre-order</p>
+            <p class="font-black text-coffee-900">${itemCount} item / ${rupiah(Number(reservation.total || 0))}</p>
+          </div>
+          <ul class="mt-4 list-disc space-y-2 pl-5 text-sm leading-6 text-coffee-700">${items}</ul>
+        </article>
+      </div>
+    </div>
+  `;
+    wrapper.classList.remove('hidden');
+}
+
 function initializeReservationForm() {
     const today = new Date().toISOString().split('T')[0];
     const dateInput = document.querySelector('input[name="date"]');
@@ -245,6 +354,7 @@ function initializeReservationForm() {
 function initializeDomBindings() {
     updateCartCount();
     renderCart();
+    renderProfileLocalReservation();
     initializeReservationForm();
 
     document.querySelector('#toGuestStep')?.addEventListener('click', () => setReservationStep('guest'));

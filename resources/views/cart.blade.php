@@ -53,11 +53,11 @@
         <form id="reservationForm" class="mt-8 grid gap-5 md:grid-cols-2">
           <label class="grid gap-2">
             <span class="text-sm font-black text-coffee-700">Nama Pemesan *</span>
-            <input name="guestName" required class="form-field" placeholder="Nama kamu">
+            <input name="guestName" value="{{ auth()->user()?->name }}" required class="form-field" placeholder="Nama kamu">
           </label>
           <label class="grid gap-2">
             <span class="text-sm font-black text-coffee-700">Nomor WhatsApp *</span>
-            <input name="phone" required class="form-field" placeholder="08xxxxxxxxxx">
+            <input name="phone" value="{{ auth()->user()?->phone_number }}" required class="form-field" placeholder="08xxxxxxxxxx">
           </label>
           <label class="grid gap-2">
             <span class="text-sm font-black text-coffee-700">Jumlah Tamu *</span>
@@ -104,7 +104,11 @@
 
         <div class="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-end">
           <a href="{{ route('menu') }}" class="pill-button-light">Pesan Lagi</a>
-          <a href="{{ route('landing') }}" class="pill-button-dark">Kembali ke Landing</a>
+          @auth
+            <a href="{{ route('customer.profile') }}" class="pill-button-dark">Lihat Profil</a>
+          @else
+            <a href="{{ route('landing') }}" class="pill-button-dark">Kembali ke Landing</a>
+          @endauth
         </div>
       </section>
     </div>
