@@ -355,7 +355,7 @@ class AdminPanelController extends Controller
     public function payments(Request $request): View
     {
         $query = Payment::query()->with(['reservation', 'verifiedBy']);
-        $this->applySearch($query, $request->string('search')->toString(), ['payment_code', 'transaction_reference', 'notes']);
+        $this->applySearch($query, $request->string('search')->toString(), ['payment_code', 'transaction_reference', 'midtrans_order_id', 'notes']);
         $query->when($request->filled('status'), fn (Builder $builder) => $builder->where('status', $request->string('status')));
         $this->applySort($query, ['payment_code', 'amount', 'method', 'status', 'paid_at', 'verified_at'], 'created_at', 'desc');
 

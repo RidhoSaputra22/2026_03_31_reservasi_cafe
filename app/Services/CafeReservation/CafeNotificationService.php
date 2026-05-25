@@ -24,6 +24,9 @@ class CafeNotificationService
                     'amount',
                     'method',
                     'status',
+                    'transaction_reference',
+                    'snap_token',
+                    'snap_redirect_url',
                 ]),
             ],
         );

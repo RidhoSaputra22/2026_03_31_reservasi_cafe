@@ -12,9 +12,11 @@ use App\Models\CafeTable;
 use App\Models\ReservationSlot;
 use App\Models\User;
 use App\Services\CafeReservation\CafeAvailabilityService;
+use App\Services\CafeReservation\CafePaymentService;
 use App\Services\CafeReservation\CafeReservationService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class CafeReservationServiceTest extends TestCase
@@ -79,6 +81,137 @@ class CafeReservationServiceTest extends TestCase
         $this->assertSame('50000.00', $payment->amount);
         $this->assertSame(TableStatus::Reserved, $result['table']->status);
         $this->assertCount(2, $result['notifications'][0]['admins']);
+    }
+
+    public function test_it_creates_a_midtrans_snap_transaction_for_online_payment(): void
+    {
+        config([
+            'services.midtrans.server_key' => 'SB-Mid-server-test',
+            'services.midtrans.is_production' => false,
+            'services.midtrans.enabled_payments' => ['qris'],
+            'services.midtrans.finish_url' => 'https://example.test/midtrans/finish',
+        ]);
+
+        Http::fake([
+            'https://app.sandbox.midtrans.com/snap/v1/transactions' => Http::response([
+                'token' => 'snap-token-123',
+                'redirect_url' => 'https://app.sandbox.midtrans.com/snap/v2/vtweb/snap-token-123',
+            ], 201),
+        ]);
+
+        CafeProfile::factory()->create([
+            'down_payment_amount' => 50000,
+        ]);
+
+        User::factory()->admin()->create();
+        $customer = User::factory()->customer()->create([
+            'name' => 'Iskandar Hidayat',
+            'email' => 'iskandar@example.test',
+            'phone_number' => '081234567890',
+        ]);
+
+        CafeTable::factory()->create([
+            'capacity' => 4,
+        ]);
+
+        $date = Carbon::create(2026, 5, 24);
+        $this->createSlot($date, '19:00:00', '21:00:00', 'Dinner');
+
+        $result = app(CafeReservationService::class)->createReservation([
+            'user_id' => $customer->id,
+            'customer_name' => $customer->name,
+            'customer_phone' => $customer->phone_number,
+            'reservation_date' => $date->toDateString(),
+            'start_time' => '19:00',
+            'guest_count' => 2,
+            'payment' => [
+                'method' => PaymentMethod::Qris,
+            ],
+        ]);
+
+        $payment = $result['payment']->fresh();
+
+        $this->assertSame($payment->transaction_reference, $payment->midtrans_order_id);
+        $this->assertSame('snap-token-123', $payment->snap_token);
+        $this->assertSame('https://app.sandbox.midtrans.com/snap/v2/vtweb/snap-token-123', $payment->snap_redirect_url);
+        $this->assertSame(PaymentStatus::Pending->value, $payment->midtrans_status);
+        $this->assertSame('snap-token-123', $payment->midtrans_payload['token']);
+        $this->assertSame('snap-token-123', $result['notifications'][0]['context']['payment']['snap_token']);
+
+        Http::assertSent(function ($request) use ($payment, $customer): bool {
+            $payload = $request->data();
+
+            return $request->method() === 'POST'
+                && $request->url() === 'https://app.sandbox.midtrans.com/snap/v1/transactions'
+                && $payload['transaction_details']['order_id'] === $payment->transaction_reference
+                && $payload['transaction_details']['gross_amount'] === 50000
+                && $payload['enabled_payments'] === ['qris']
+                && $payload['customer_details']['email'] === $customer->email
+                && $payload['callbacks']['finish'] === 'https://example.test/midtrans/finish';
+        });
+    }
+
+    public function test_it_syncs_payment_and_reservation_from_midtrans_notification(): void
+    {
+        config([
+            'services.midtrans.server_key' => 'SB-Mid-server-test',
+            'services.midtrans.is_production' => false,
+        ]);
+
+        Http::fake([
+            'https://app.sandbox.midtrans.com/snap/v1/transactions' => Http::response([
+                'token' => 'snap-token-456',
+                'redirect_url' => 'https://app.sandbox.midtrans.com/snap/v2/vtweb/snap-token-456',
+            ], 201),
+        ]);
+
+        CafeProfile::factory()->create([
+            'down_payment_amount' => 50000,
+        ]);
+
+        User::factory()->admin()->create();
+        $customer = User::factory()->customer()->create();
+
+        CafeTable::factory()->create([
+            'capacity' => 4,
+        ]);
+
+        $date = Carbon::create(2026, 5, 25);
+        $this->createSlot($date, '20:00:00', '22:00:00', 'Dinner');
+
+        $created = app(CafeReservationService::class)->createReservation([
+            'user_id' => $customer->id,
+            'customer_name' => $customer->name,
+            'customer_phone' => $customer->phone_number,
+            'reservation_date' => $date->toDateString(),
+            'start_time' => '20:00',
+            'guest_count' => 2,
+            'payment' => [
+                'method' => PaymentMethod::Qris,
+            ],
+        ]);
+
+        $payment = $created['payment']->fresh();
+        $payload = [
+            'order_id' => $payment->midtrans_order_id,
+            'status_code' => '200',
+            'gross_amount' => '50000.00',
+            'transaction_status' => 'settlement',
+            'settlement_time' => '2026-05-25 20:10:00',
+        ];
+        $payload['signature_key'] = hash(
+            'sha512',
+            $payload['order_id'].$payload['status_code'].$payload['gross_amount'].'SB-Mid-server-test',
+        );
+
+        $updatedPayment = app(CafePaymentService::class)->syncFromMidtransNotification($payload);
+
+        $this->assertSame(PaymentStatus::Paid, $updatedPayment->status);
+        $this->assertNotNull($updatedPayment->paid_at);
+        $this->assertNotNull($updatedPayment->verified_at);
+        $this->assertSame('settlement', $updatedPayment->midtrans_status);
+        $this->assertSame(ReservationStatus::Confirmed, $updatedPayment->reservation->status);
+        $this->assertNotNull($updatedPayment->reservation->confirmed_at);
     }
 
     public function test_it_confirms_a_reservation_immediately_when_payment_is_skipped(): void

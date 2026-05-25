@@ -9,12 +9,20 @@ use App\Enums\ReservationStatus;
 use App\Models\CafeProfile;
 use App\Models\Payment;
 use App\Models\Reservation;
+use App\Services\MidtransService;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use RuntimeException;
 
 class CafePaymentService
 {
+    public function __construct(
+        private readonly MidtransService $midtransService,
+    ) {}
+
     public function createPaymentForReservation(Reservation $reservation, array $paymentData = []): ?Payment
     {
         $paymentType = $this->resolvePaymentType($paymentData);
@@ -47,14 +55,21 @@ class CafePaymentService
         $verifiedAt = $status === PaymentStatus::Paid
             ? $this->resolveDateTime($paymentData['verified_at'] ?? $paidAt)
             : null;
+        $paymentCode = $this->generatePaymentCode();
+        $useMidtrans = $this->shouldUseMidtrans($paymentData, $method);
+        $transactionReference = $paymentData['transaction_reference'] ?? null;
+
+        if ($useMidtrans) {
+            $transactionReference = $this->midtransService->makeOrderId($transactionReference ?: $paymentCode);
+        }
 
         $payment = $reservation->payments()->create([
-            'payment_code' => $this->generatePaymentCode(),
+            'payment_code' => $paymentCode,
             'type' => $paymentType,
             'amount' => $amount,
             'method' => $method,
             'status' => $status,
-            'transaction_reference' => $paymentData['transaction_reference'] ?? null,
+            'transaction_reference' => $transactionReference,
             'proof_path' => $paymentData['proof_path'] ?? null,
             'paid_at' => $paidAt,
             'verified_at' => $verifiedAt,
@@ -62,6 +77,112 @@ class CafePaymentService
             'notes' => $paymentData['notes'] ?? null,
         ]);
 
+        if ($useMidtrans) {
+            $this->createMidtransTransaction($payment, $paymentData);
+        }
+
+        $this->applyReservationPaymentStatus($reservation, $status, $amount);
+
+        return $payment->fresh();
+    }
+
+    public function syncFromMidtransNotification(array $payload): Payment
+    {
+        if (! $this->midtransService->isSignatureValid($payload)) {
+            throw new RuntimeException('Signature notifikasi Midtrans tidak valid.');
+        }
+
+        $orderId = (string) Arr::get($payload, 'order_id', '');
+
+        if ($orderId === '') {
+            throw new RuntimeException('Order ID Midtrans tidak ditemukan pada payload notifikasi.');
+        }
+
+        return DB::transaction(function () use ($orderId, $payload): Payment {
+            $payment = Payment::query()
+                ->where('midtrans_order_id', $orderId)
+                ->orWhere('transaction_reference', $orderId)
+                ->firstOrFail();
+            $status = $this->midtransService->mapTransactionStatus($payload);
+            $paidAt = $this->resolvePaidAt(
+                $status,
+                Arr::get($payload, 'settlement_time') ?: Arr::get($payload, 'transaction_time'),
+            );
+
+            $payment->forceFill([
+                'status' => $status,
+                'paid_at' => $paidAt,
+                'verified_at' => $status === PaymentStatus::Paid ? ($payment->verified_at ?? now()) : null,
+                'midtrans_status' => Arr::get($payload, 'transaction_status'),
+                'midtrans_payload' => $payload,
+            ])->save();
+
+            $reservation = $payment->reservation;
+
+            if ($reservation instanceof Reservation) {
+                $this->applyReservationPaymentStatus($reservation, $status, (float) $payment->amount);
+            }
+
+            return $payment->fresh();
+        });
+    }
+
+    protected function createMidtransTransaction(Payment $payment, array $paymentData): void
+    {
+        $response = $this->midtransService->createSnapTransaction(
+            $payment,
+            $this->resolveMidtransOptions($paymentData),
+        );
+
+        $payment->forceFill([
+            'midtrans_order_id' => $payment->transaction_reference,
+            'snap_token' => $response['token'] ?? null,
+            'snap_redirect_url' => $response['redirect_url'] ?? null,
+            'midtrans_status' => $response['transaction_status'] ?? PaymentStatus::Pending->value,
+            'midtrans_payload' => $response,
+        ])->save();
+    }
+
+    protected function shouldUseMidtrans(array $paymentData, PaymentMethod $method): bool
+    {
+        if (array_key_exists('use_midtrans', $paymentData)) {
+            return (bool) $paymentData['use_midtrans'];
+        }
+
+        if (array_key_exists('midtrans', $paymentData)) {
+            return is_array($paymentData['midtrans']) || (bool) $paymentData['midtrans'];
+        }
+
+        if (array_key_exists('midtrans_options', $paymentData)) {
+            return true;
+        }
+
+        if (! $this->midtransService->isConfigured()) {
+            return false;
+        }
+
+        return in_array($method, [
+            PaymentMethod::BankTransfer,
+            PaymentMethod::Qris,
+            PaymentMethod::Card,
+        ], true);
+    }
+
+    protected function resolveMidtransOptions(array $paymentData): array
+    {
+        if (is_array($paymentData['midtrans'] ?? null)) {
+            return $paymentData['midtrans'];
+        }
+
+        if (is_array($paymentData['midtrans_options'] ?? null)) {
+            return $paymentData['midtrans_options'];
+        }
+
+        return [];
+    }
+
+    protected function applyReservationPaymentStatus(Reservation $reservation, PaymentStatus $status, float $amount): void
+    {
         $reservationAttributes = ['amount_due' => $amount];
 
         if ($status === PaymentStatus::Paid) {
@@ -70,14 +191,15 @@ class CafePaymentService
         } elseif ($status === PaymentStatus::AwaitingVerification) {
             $reservationAttributes['status'] = ReservationStatus::AwaitingConfirmation;
             $reservationAttributes['confirmed_at'] = null;
+        } elseif ($status === PaymentStatus::Refunded) {
+            $reservationAttributes['status'] = $reservation->status;
+            $reservationAttributes['confirmed_at'] = $reservation->confirmed_at;
         } else {
             $reservationAttributes['status'] = ReservationStatus::PendingPayment;
             $reservationAttributes['confirmed_at'] = null;
         }
 
         $reservation->forceFill($reservationAttributes)->save();
-
-        return $payment->fresh();
     }
 
     public function resolveDefaultAmount(PaymentType $paymentType): float

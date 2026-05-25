@@ -35,4 +35,16 @@ return [
         ],
     ],
 
+    'midtrans' => [
+        'server_key' => env('MIDTRANS_SERVER_KEY'),
+        'client_key' => env('MIDTRANS_CLIENT_KEY'),
+        'is_production' => env('MIDTRANS_IS_PRODUCTION', false),
+        'is_3ds' => env('MIDTRANS_IS_3DS', true),
+        'timeout' => env('MIDTRANS_TIMEOUT', 15),
+        'enabled_payments' => array_values(array_filter(explode(',', env('MIDTRANS_ENABLED_PAYMENTS', '')))),
+        'finish_url' => env('MIDTRANS_FINISH_URL'),
+        'unfinish_url' => env('MIDTRANS_UNFINISH_URL'),
+        'error_url' => env('MIDTRANS_ERROR_URL'),
+    ],
+
 ];
