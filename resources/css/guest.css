@@ -20,7 +20,11 @@
     --color-coffee-700: #3d2a1f;
     --color-coffee-800: #271b15;
     --color-coffee-900: #16100d;
+
+
 }
+
+
 
 @layer base {
     [x-cloak] {
@@ -50,4 +54,11 @@
     .form-field {
         @apply w-full rounded-2xl border border-coffee-200 bg-white px-4 py-3 text-coffee-900 transition placeholder:text-coffee-400 focus:border-coffee-400 focus:outline-none focus:ring-4 focus:ring-coffee-100/80;
     }
+}
+
+.home-banner-pagination,
+.package-banner-pagination {
+    --swiper-pagination-color: #fff; /* bullet aktif */
+    --swiper-pagination-bullet-inactive-color: rgba(255, 255, 255, 0.35); /* bullet nonaktif */
+    --swiper-pagination-bullet-inactive-opacity: 1;
 }

@@ -22,8 +22,8 @@
 @endphp
 
 <div>
-    <section class="relative -mt-24 overflow-hidden pt-24">
-        <div class="swiper homeBannerSwiper h-[38rem] md:h-[44rem]">
+    <section class="relative -mt-24 overflow-hidden ">
+        <div class="swiper homeBannerSwiper h-[38rem] md:h-[50rem]">
             <div class="swiper-wrapper">
                 @foreach ($slides as $slide)
                     <div class="swiper-slide relative">
