@@ -31,20 +31,17 @@
         display: none !important;
     }
 
-    body {
-        background-color: var(--color-coffee-50);
-        color: var(--color-coffee-900);
-    }
+
 }
 
 @layer components {
     .panel-surface {
-        @apply rounded-[2rem] border border-coffee-100 bg-white;
+        @apply rounded-sm border border-coffee-100 bg-white;
         box-shadow: 0 24px 72px rgba(22, 16, 13, 0.08);
     }
 
     .pill-button-dark {
-        @apply inline-flex items-center justify-center rounded-full bg-coffee-900 px-6 py-3 text-sm font-black uppercase tracking-[0.16em] text-white transition duration-200 hover:-translate-y-0.5 hover:bg-coffee-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-coffee-100;
+        @apply inline-flex items-center justify-center rounded-xl cursor-pointer bg-coffee-900 px-6 py-3 text-sm font-black uppercase tracking-[0.16em] text-white transition duration-200 hover:-translate-y-0.5 hover:bg-coffee-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-coffee-100;
     }
 
     .pill-button-light {
@@ -52,7 +49,7 @@
     }
 
     .form-field {
-        @apply w-full rounded-2xl border border-coffee-200 bg-white px-4 py-3 text-coffee-900 transition placeholder:text-coffee-400 focus:border-coffee-400 focus:outline-none focus:ring-4 focus:ring-coffee-100/80;
+        @apply w-full rounded-md border border-coffee-200 bg-white px-4 py-3 text-coffee-900 transition placeholder:text-coffee-400 focus:border-coffee-400 focus:outline-none focus:ring-4 focus:ring-coffee-100/80;
     }
 }
 
