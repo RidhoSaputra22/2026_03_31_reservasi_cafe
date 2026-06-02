@@ -1,12 +1,14 @@
-<x-layouts.app title="Panel Pengguna" :breadcrumbs="[['label' => 'Pengguna']]">
-    <x-slot:header>
-        <x-layouts.page-header title="Panel Pengguna" description="Kelola akun admin, staff cafe, dan pelanggan yang terhubung ke reservasi.">
-            <x-slot:actions>
-                <x-ui.button href="#form-user" type="primary" size="sm" :isSubmit="false">Tambah Pengguna</x-ui.button>
-            </x-slot:actions>
-        </x-layouts.page-header>
-    </x-slot:header>
+@extends('admin.layouts.app', ['title' => 'Panel Pengguna', 'breadcrumbs' => [['label' => 'Pengguna']]])
 
+@section('header')
+    <x-layouts.page-header title="Panel Pengguna" description="Kelola akun admin, staff cafe, dan pelanggan yang terhubung ke reservasi.">
+        <x-slot:actions>
+            <x-ui.button href="#form-user" type="primary" size="sm" :isSubmit="false">Tambah Pengguna</x-ui.button>
+        </x-slot:actions>
+    </x-layouts.page-header>
+@endsection
+
+@section('content')
     <div class="grid gap-6 xl:grid-cols-[.85fr_1.15fr]">
         <x-ui.card id="form-user" title="Tambah Pengguna Baru">
             <form method="POST" action="{{ route('admin.users.store') }}" class="space-y-4">
@@ -57,4 +59,4 @@
             </x-slot:filters>
         </x-ui.data-table>
     </x-ui.card>
-</x-layouts.app>
+@endsection

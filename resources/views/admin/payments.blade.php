@@ -1,12 +1,14 @@
-<x-layouts.app title="Panel Pembayaran" :breadcrumbs="[['label' => 'Pembayaran']]">
-    <x-slot:header>
-        <x-layouts.page-header title="Panel Pembayaran" description="Validasi DP, metode pembayaran, referensi transaksi, dan status reservasi terkait.">
-            <x-slot:actions>
-                <x-ui.button :href="route('admin.reservations.index')" type="ghost" size="sm" :isSubmit="false">Buka Reservasi</x-ui.button>
-            </x-slot:actions>
-        </x-layouts.page-header>
-    </x-slot:header>
+@extends('admin.layouts.app', ['title' => 'Panel Pembayaran', 'breadcrumbs' => [['label' => 'Pembayaran']]])
 
+@section('header')
+    <x-layouts.page-header title="Panel Pembayaran" description="Validasi DP, metode pembayaran, referensi transaksi, dan status reservasi terkait.">
+        <x-slot:actions>
+            <x-ui.button :href="route('admin.reservations.index')" type="ghost" size="sm" :isSubmit="false">Buka Reservasi</x-ui.button>
+        </x-slot:actions>
+    </x-layouts.page-header>
+@endsection
+
+@section('content')
     <div class="space-y-6">
         <x-ui.card title="Antrian Verifikasi Pembayaran">
             <div class="grid gap-4 lg:grid-cols-2">
@@ -52,4 +54,4 @@
             </x-ui.data-table>
         </x-ui.card>
     </div>
-</x-layouts.app>
+@endsection

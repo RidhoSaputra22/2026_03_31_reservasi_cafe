@@ -1,12 +1,14 @@
-<x-layouts.app title="Panel Menu" :breadcrumbs="[['label' => 'Menu Cafe']]">
-    <x-slot:header>
-        <x-layouts.page-header title="Panel Menu Cafe" description="Tambah, pantau, dan hapus item menu yang ditampilkan sebagai katalog cafe.">
-            <x-slot:actions>
-                <x-ui.button href="#form-menu" type="primary" size="sm" :isSubmit="false">Tambah Menu</x-ui.button>
-            </x-slot:actions>
-        </x-layouts.page-header>
-    </x-slot:header>
+@extends('admin.layouts.app', ['title' => 'Panel Menu', 'breadcrumbs' => [['label' => 'Menu Cafe']]])
 
+@section('header')
+    <x-layouts.page-header title="Panel Menu Cafe" description="Tambah, pantau, dan hapus item menu yang ditampilkan sebagai katalog cafe.">
+        <x-slot:actions>
+            <x-ui.button href="#form-menu" type="primary" size="sm" :isSubmit="false">Tambah Menu</x-ui.button>
+        </x-slot:actions>
+    </x-layouts.page-header>
+@endsection
+
+@section('content')
     <div class="grid gap-6 xl:grid-cols-[.85fr_1.15fr]">
         <x-ui.card id="form-menu" title="Tambah Menu Baru">
             <form method="POST" action="{{ route('admin.menu.store') }}" class="space-y-4">
@@ -60,4 +62,4 @@
             :delete-route="fn ($row) => route('admin.menu.destroy', $row)"
         />
     </x-ui.card>
-</x-layouts.app>
+@endsection

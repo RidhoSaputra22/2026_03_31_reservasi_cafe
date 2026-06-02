@@ -1,12 +1,14 @@
-<x-layouts.app title="Profil Cafe" :breadcrumbs="[['label' => 'Profil Cafe']]">
-    <x-slot:header>
-        <x-layouts.page-header title="Profil Cafe" description="Kelola informasi AMIKOSPACE yang menjadi sumber aturan reservasi dan data menu.">
-            <x-slot:actions>
-                <x-ui.button :href="route('admin.menu.index')" type="ghost" size="sm" :isSubmit="false">Kelola Menu</x-ui.button>
-            </x-slot:actions>
-        </x-layouts.page-header>
-    </x-slot:header>
+@extends('admin.layouts.app', ['title' => 'Profil Cafe', 'breadcrumbs' => [['label' => 'Profil Cafe']]])
 
+@section('header')
+    <x-layouts.page-header title="Profil Cafe" description="Kelola informasi AMIKOSPACE yang menjadi sumber aturan reservasi dan data menu.">
+        <x-slot:actions>
+            <x-ui.button :href="route('admin.menu.index')" type="ghost" size="sm" :isSubmit="false">Kelola Menu</x-ui.button>
+        </x-slot:actions>
+    </x-layouts.page-header>
+@endsection
+
+@section('content')
     <div class="grid gap-6 xl:grid-cols-[1.1fr_.9fr]">
         <x-ui.card title="Form Profil Cafe">
             <form method="POST" action="{{ route('admin.profile.update') }}" class="space-y-4">
@@ -61,4 +63,4 @@
             </x-ui.alert>
         </div>
     </div>
-</x-layouts.app>
+@endsection

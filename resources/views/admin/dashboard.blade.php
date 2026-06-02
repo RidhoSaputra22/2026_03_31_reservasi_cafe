@@ -1,17 +1,19 @@
-<x-layouts.app title="Dashboard Admin" :breadcrumbs="[]">
-    <x-slot:header>
-        <x-layouts.page-header title="Dashboard Admin" description="Ringkasan operasional AMIKOSPACE Coffee & Tea dan pintu masuk ke semua panel pengelolaan.">
-            <x-slot:actions>
-                <x-ui.button :href="route('admin.reservations.index')" type="primary" size="sm" :isSubmit="false">
-                    Kelola Reservasi
-                </x-ui.button>
-                <x-ui.button :href="route('landing')" type="ghost" size="sm" :isSubmit="false">
-                    Lihat Website
-                </x-ui.button>
-            </x-slot:actions>
-        </x-layouts.page-header>
-    </x-slot:header>
+@extends('admin.layouts.app', ['title' => 'Dashboard Admin', 'breadcrumbs' => []])
 
+@section('header')
+    <x-layouts.page-header title="Dashboard Admin" description="Ringkasan operasional AMIKOSPACE Coffee & Tea dan pintu masuk ke semua panel pengelolaan.">
+        <x-slot:actions>
+            <x-ui.button :href="route('admin.reservations.index')" type="primary" size="sm" :isSubmit="false">
+                Kelola Reservasi
+            </x-ui.button>
+            <x-ui.button :href="route('landing')" type="ghost" size="sm" :isSubmit="false">
+                Lihat Website
+            </x-ui.button>
+        </x-slot:actions>
+    </x-layouts.page-header>
+@endsection
+
+@section('content')
     <div class="space-y-6">
         <x-ui.alert type="info" :dismissible="true">
             <div>
@@ -192,4 +194,4 @@
             </div>
         </div>
     </div>
-</x-layouts.app>
+@endsection

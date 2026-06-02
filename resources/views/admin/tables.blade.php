@@ -1,13 +1,15 @@
-<x-layouts.app title="Panel Meja" :breadcrumbs="[['label' => 'Meja & Area']]">
-    <x-slot:header>
-        <x-layouts.page-header title="Panel Meja & Area" description="Kelola kode meja, kapasitas, lokasi, status, dan ketersediaan meja cafe.">
-            <x-slot:actions>
-                <x-ui.button href="#form-meja" type="primary" size="sm" :isSubmit="false">Tambah Meja</x-ui.button>
-                <x-ui.button type="ghost" size="sm" :isSubmit="false" onclick="status_meja_help.showModal()">Panduan Status</x-ui.button>
-            </x-slot:actions>
-        </x-layouts.page-header>
-    </x-slot:header>
+@extends('admin.layouts.app', ['title' => 'Panel Meja', 'breadcrumbs' => [['label' => 'Meja & Area']]])
 
+@section('header')
+    <x-layouts.page-header title="Panel Meja & Area" description="Kelola kode meja, kapasitas, lokasi, status, dan ketersediaan meja cafe.">
+        <x-slot:actions>
+            <x-ui.button href="#form-meja" type="primary" size="sm" :isSubmit="false">Tambah Meja</x-ui.button>
+            <x-ui.button type="ghost" size="sm" :isSubmit="false" onclick="status_meja_help.showModal()">Panduan Status</x-ui.button>
+        </x-slot:actions>
+    </x-layouts.page-header>
+@endsection
+
+@section('content')
     <div class="grid gap-6 xl:grid-cols-[.85fr_1.15fr]">
         <x-ui.card id="form-meja" title="Tambah Meja Baru">
             <form method="POST" action="{{ route('admin.tables.store') }}" class="space-y-4">
@@ -79,4 +81,4 @@
             <p><strong>Selesai Digunakan</strong> bisa dipakai sebagai status transisi sebelum meja dikembalikan ke tersedia.</p>
         </div>
     </x-ui.modal>
-</x-layouts.app>
+@endsection

@@ -1,12 +1,14 @@
-<x-layouts.app title="Panel Slot Reservasi" :breadcrumbs="[['label' => 'Slot Reservasi']]">
-    <x-slot:header>
-        <x-layouts.page-header title="Panel Slot Reservasi" description="Atur jam operasional reservasi per hari agar assignment meja tetap rapi.">
-            <x-slot:actions>
-                <x-ui.button href="#form-slot" type="primary" size="sm" :isSubmit="false">Tambah Slot</x-ui.button>
-            </x-slot:actions>
-        </x-layouts.page-header>
-    </x-slot:header>
+@extends('admin.layouts.app', ['title' => 'Panel Slot Reservasi', 'breadcrumbs' => [['label' => 'Slot Reservasi']]])
 
+@section('header')
+    <x-layouts.page-header title="Panel Slot Reservasi" description="Atur jam operasional reservasi per hari agar assignment meja tetap rapi.">
+        <x-slot:actions>
+            <x-ui.button href="#form-slot" type="primary" size="sm" :isSubmit="false">Tambah Slot</x-ui.button>
+        </x-slot:actions>
+    </x-layouts.page-header>
+@endsection
+
+@section('content')
     <div class="grid gap-6 xl:grid-cols-[.85fr_1.15fr]">
         <x-ui.card id="form-slot" title="Tambah Slot Baru">
             <form method="POST" action="{{ route('admin.slots.store') }}" class="space-y-4">
@@ -58,4 +60,4 @@
             </x-slot:filters>
         </x-ui.data-table>
     </x-ui.card>
-</x-layouts.app>
+@endsection
