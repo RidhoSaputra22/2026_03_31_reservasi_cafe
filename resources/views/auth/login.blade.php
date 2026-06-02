@@ -41,6 +41,9 @@
 
         <form method="POST" action="{{ route('login.store') }}" class="space-y-5">
           @csrf
+          @if (request('redirect'))
+            <input type="hidden" name="redirect_to" value="{{ request('redirect') }}">
+          @endif
 
           <div>
             <label for="email" class="mb-2 block text-sm font-black text-coffee-900">Email</label>
@@ -64,7 +67,7 @@
 
         <p class="mt-6 text-center text-sm text-coffee-600">
           Belum punya akun?
-          <a href="{{ route('register') }}" class="font-black text-black underline-offset-4 hover:underline">Daftar pelanggan</a>
+          <a href="{{ route('register', request('redirect') ? ['redirect' => request('redirect')] : []) }}" class="font-black text-black underline-offset-4 hover:underline">Daftar pelanggan</a>
         </p>
       </div>
     </div>

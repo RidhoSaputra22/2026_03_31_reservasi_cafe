@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\UserRole;
+use App\Models\GuestReview;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -56,6 +57,11 @@ class User extends Authenticatable
     public function verifiedPayments(): HasMany
     {
         return $this->hasMany(Payment::class, 'verified_by');
+    }
+
+    public function guestReviews(): HasMany
+    {
+        return $this->hasMany(GuestReview::class);
     }
 
     public function isAdmin(): bool

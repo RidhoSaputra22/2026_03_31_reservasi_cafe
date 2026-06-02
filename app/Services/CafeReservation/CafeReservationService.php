@@ -60,6 +60,8 @@ class CafeReservationService
                 'user_id' => $userId,
                 'cafe_table_id' => $table->id,
                 'reservation_slot_id' => $slot->id,
+                'package_slug' => $data['package_slug'] ?? null,
+                'package_name' => $data['package_name'] ?? null,
                 'customer_name' => $customerName,
                 'customer_phone' => $data['customer_phone'] ?? null,
                 'reservation_date' => $reservationDate->toDateString(),
@@ -162,6 +164,8 @@ class CafeReservationService
             $reservation->forceFill([
                 'cafe_table_id' => $table->id,
                 'reservation_slot_id' => $slot->id,
+                'package_slug' => $data['package_slug'] ?? $reservation->package_slug,
+                'package_name' => $data['package_name'] ?? $reservation->package_name,
                 'customer_name' => $data['customer_name'] ?? $reservation->customer_name,
                 'customer_phone' => $data['customer_phone'] ?? $reservation->customer_phone,
                 'reservation_date' => $reservationDate->toDateString(),

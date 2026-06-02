@@ -3,6 +3,7 @@
 namespace Tests\Feature\Customer;
 
 use App\Models\CafeTable;
+use App\Models\CafeProfile;
 use App\Models\Payment;
 use App\Models\Reservation;
 use App\Models\ReservationSlot;
@@ -22,6 +23,8 @@ class CustomerProfileTest extends TestCase
 
     public function test_customer_can_view_profile_with_reservation_history_and_reminder(): void
     {
+        CafeProfile::factory()->create();
+
         $customer = User::factory()->customer()->create([
             'name' => 'Bima Pelanggan',
             'email' => 'bima@example.test',
@@ -64,8 +67,8 @@ class CustomerProfileTest extends TestCase
             ->get(route('customer.profile'))
             ->assertOk()
             ->assertSee('Halo, Bima Pelanggan')
-            ->assertSee('Pengingat Reservasi')
-            ->assertSee('Riwayat Pesanan')
+            ->assertSee('Reservasi Terdekat')
+            ->assertSee('Riwayat Reservasi')
             ->assertSee('RSV-PROFILE')
             ->assertSee('Meja Window');
     }

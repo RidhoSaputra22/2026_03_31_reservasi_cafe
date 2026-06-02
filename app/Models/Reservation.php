@@ -17,6 +17,8 @@ class Reservation extends Model
         'user_id',
         'cafe_table_id',
         'reservation_slot_id',
+        'package_slug',
+        'package_name',
         'customer_name',
         'customer_phone',
         'reservation_date',

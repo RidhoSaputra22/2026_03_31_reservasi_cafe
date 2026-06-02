@@ -4,12 +4,15 @@ namespace App\Http\Controllers\Customer;
 
 use App\Enums\ReservationStatus;
 use App\Http\Controllers\Controller;
+use App\Models\CafeProfile;
 use App\Models\Reservation;
+use App\Services\CafeReservation\CafeReservationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use RuntimeException;
 
 class ProfileController extends Controller
 {
@@ -57,12 +60,33 @@ class ProfileController extends Controller
         ];
 
         return view('customer.profile', [
+            'profile' => CafeProfile::query()->first(),
             'user' => $user,
             'reservations' => $reservations,
             'upcomingReservations' => $upcomingReservations,
             'nextReservation' => $upcomingReservations->first(),
             'stats' => $stats,
         ]);
+    }
+
+    public function cancel(
+        Request $request,
+        Reservation $reservation,
+        CafeReservationService $reservationService,
+    ): RedirectResponse {
+        abort_unless($reservation->user_id === $request->user()?->id, 404);
+
+        try {
+            $reservationService->cancelReservation(
+                $reservation,
+                'Dibatalkan pelanggan melalui halaman akun.',
+                $request->user(),
+            );
+        } catch (RuntimeException $exception) {
+            return back()->with('error', $exception->getMessage());
+        }
+
+        return back()->with('success', 'Reservasi berhasil dibatalkan.');
     }
 
     /**

@@ -48,6 +48,7 @@ class AuthenticationController extends Controller
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],
             'remember' => ['nullable', 'boolean'],
+            'redirect_to' => ['nullable', 'url'],
         ]);
 
         $user = User::query()->where('email', $validated['email'])->first();
@@ -63,7 +64,9 @@ class AuthenticationController extends Controller
         Auth::login($user, $request->boolean('remember'));
         $request->session()->regenerate();
 
-        return redirect()->intended(route('landing'))->with('success', 'Selamat datang kembali.');
+        return redirect()
+            ->intended($validated['redirect_to'] ?? route('landing'))
+            ->with('success', 'Selamat datang kembali.');
     }
 
     public function registerUser(Request $request): RedirectResponse
@@ -73,6 +76,7 @@ class AuthenticationController extends Controller
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'phone_number' => ['nullable', 'string', 'max:30', 'unique:users,phone_number'],
             'password' => ['required', 'confirmed', Password::min(8)],
+            'redirect_to' => ['nullable', 'url'],
         ]);
 
         $user = User::query()->create([
@@ -86,7 +90,9 @@ class AuthenticationController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
 
-        return redirect()->route('landing')->with('success', 'Akun pelanggan berhasil dibuat.');
+        return redirect()
+            ->to($validated['redirect_to'] ?? route('landing'))
+            ->with('success', 'Akun pelanggan berhasil dibuat.');
     }
 
     public function loginAdmin(Request $request): RedirectResponse

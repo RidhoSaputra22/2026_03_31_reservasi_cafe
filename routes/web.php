@@ -3,12 +3,21 @@
 use App\Http\Controllers\Admin\AdminPanelController;
 use App\Http\Controllers\Auth\AuthenticationController;
 use App\Http\Controllers\Customer\ProfileController;
+use App\Http\Controllers\Guest\BookingController;
+use App\Http\Controllers\Guest\PackageController;
+use App\Http\Controllers\Guest\WelcomeController;
 use Illuminate\Support\Facades\Route;
 
-Route::view('/', 'welcome')->name('landing');
-Route::view('/menu', 'menu')->name('menu');
-Route::view('/cart', 'cart')->name('cart');
-Route::view('/about', 'about')->name('about');
+Route::get('/', [WelcomeController::class, 'index'])->name('landing');
+
+Route::view('/menu', 'guest.menu.menu')->name('menu');
+Route::view('/cart', 'guest.cart.cart')->name('cart');
+Route::get('/about', [WelcomeController::class, 'about'])->name('about');
+Route::get('/paket', [PackageController::class, 'index'])->name('packages.index');
+Route::get('/booking', static fn () => redirect()->route('packages.index'))->name('booking.index');
+Route::get('/booking/{slug}', [BookingController::class, 'show'])->name('booking.show');
+Route::get('/booking/{slug}/availability', [BookingController::class, 'availability'])->name('booking.availability');
+Route::post('/booking/{slug}/reviews', [BookingController::class, 'storeReview'])->name('booking.reviews.store');
 
 Route::controller(AuthenticationController::class)->group(function (): void {
     Route::get('/login', 'showUserLogin')->name('login');
@@ -22,6 +31,8 @@ Route::controller(AuthenticationController::class)->group(function (): void {
 
 Route::middleware('auth')->group(function (): void {
     Route::get('/akun', [ProfileController::class, 'show'])->name('customer.profile');
+    Route::delete('/akun/reservasi/{reservation}', [ProfileController::class, 'cancel'])->name('customer.reservations.cancel');
+    Route::post('/booking/{slug}', [BookingController::class, 'store'])->name('booking.store');
 });
 
 Route::prefix('admin')->middleware('admin.access')->controller(AdminPanelController::class)->group(function (): void {

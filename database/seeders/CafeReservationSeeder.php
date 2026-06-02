@@ -24,14 +24,14 @@ class CafeReservationSeeder extends Seeder
     public function run(): void
     {
         $profile = CafeProfile::factory()->create([
-            'name' => 'Cafe Amikospace',
-            'description' => 'Cafe modern untuk nongkrong, meeting, dan reservasi meja terjadwal.',
-            'address' => 'Jl. Perintis Kemerdekaan No. 88, Makassar',
+            'name' => 'Cafe Amiko',
+            'description' => 'Creative coffee space yang hangat untuk kopi, musik, obrolan, dan pengalaman komunitas.',
+            'address' => 'Jl. Meranti No.215, Paropo, Kec. Panakkukang, Kota Makassar, Sulawesi Selatan 90221',
             'phone_number' => '0411-889900',
             'opening_time' => '10:00:00',
             'closing_time' => '22:00:00',
             'facilities' => ['WiFi Cepat', 'AC', 'Stop Kontak', 'Area Indoor', 'Area Outdoor'],
-            'reservation_rules' => 'DP minimal Rp50.000 per reservasi. Pembatalan hanya dapat dilakukan sebelum H-1.',
+            'reservation_rules' => 'Reservasi dilakukan sesuai slot yang aktif. Pembatalan sebaiknya diinformasikan secepat mungkin kepada tim.',
             'down_payment_amount' => 50000,
         ]);
 

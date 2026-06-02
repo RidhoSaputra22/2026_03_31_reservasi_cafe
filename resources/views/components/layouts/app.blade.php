@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+
+<head>
+    <meta charset="utf-8" />
+
+    <meta name="application-name" content="{{ config('app.name') }}" />
+    <meta name="csrf-token" content="{{ csrf_token() }}" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>{{ config('app.name') }}</title>
+
+    @vite(['resources/css/guest.css', 'resources/js/app.js'])
+
+
+    <style>
+    [x-cloak] {
+        display: none !important;
+    }
+
+
+    * {
+        /* outline: 1px solid red !important; */
+    }
+    </style>
+
+    {{-- Swiper --}}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@12/swiper-bundle.min.css" />
+
+    {{-- AOS --}}
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+
+    <!-- Alpine Plugins -->
+    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
+
+    <!-- FullCalendar -->
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.20/index.global.min.js'></script>
+
+
+</head>
+
+<body class="antialiased h-auto">
+    @if (session('success') || session('error') || $errors->any())
+        <div class="fixed inset-x-0 top-4 z-[90] px-4">
+            <div class="mx-auto flex max-w-3xl flex-col gap-3">
+                @if (session('success'))
+                    <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-medium text-emerald-800 shadow-lg">
+                        {{ session('success') }}
+                    </div>
+                @endif
+
+                @if (session('error'))
+                    <div class="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-medium text-red-800 shadow-lg">
+                        {{ session('error') }}
+                    </div>
+                @endif
+
+                @if ($errors->any())
+                    <div class="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-medium text-amber-800 shadow-lg">
+                        <p class="font-semibold">Masih ada data yang perlu diperbaiki.</p>
+                        <ul class="mt-2 list-disc space-y-1 pl-5">
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+            </div>
+        </div>
+    @endif
+
+    {{ $slot }}
+
+
+
+
+    {{-- Swiper --}}
+    <script src="https://cdn.jsdelivr.net/npm/swiper@12/swiper-bundle.min.js"></script>
+
+    {{-- AOS --}}
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+
+
+
+
+
+
+
+
+    @stack('scripts')
+    <script>
+    AOS.init();
+    </script>
+</body>
+
+</html>

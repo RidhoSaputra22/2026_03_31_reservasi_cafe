@@ -38,6 +38,9 @@
 
         <form method="POST" action="{{ route('register.store') }}" class="space-y-5">
           @csrf
+          @if (request('redirect'))
+            <input type="hidden" name="redirect_to" value="{{ request('redirect') }}">
+          @endif
 
           <div>
             <label for="name" class="mb-2 block text-sm font-black text-coffee-900">Nama</label>
@@ -70,7 +73,7 @@
 
         <p class="mt-6 text-center text-sm text-coffee-600">
           Sudah punya akun?
-          <a href="{{ route('login') }}" class="font-black text-black underline-offset-4 hover:underline">Masuk di sini</a>
+          <a href="{{ route('login', request('redirect') ? ['redirect' => request('redirect')] : []) }}" class="font-black text-black underline-offset-4 hover:underline">Masuk di sini</a>
         </p>
       </div>
     </div>
