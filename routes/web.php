@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminPanelController;
+use App\Http\Controllers\Admin\AdminReportExportController;
 use App\Http\Controllers\Auth\AuthenticationController;
 use App\Http\Controllers\Customer\ProfileController;
 use App\Http\Controllers\Guest\BookingController;
@@ -69,4 +70,9 @@ Route::prefix('admin')->middleware('admin.access')->controller(AdminPanelControl
     Route::post('/pengguna', 'storeUser')->name('admin.users.store');
     Route::patch('/pengguna/{user}', 'updateUser')->name('admin.users.update');
     Route::delete('/pengguna/{user}', 'destroyUser')->name('admin.users.destroy');
+});
+
+Route::prefix('admin')->middleware('admin.access')->controller(AdminReportExportController::class)->group(function (): void {
+    Route::get('/laporan/reservasi/pdf', 'reservationsPdf')->name('admin.reports.reservations.pdf');
+    Route::get('/laporan/pembayaran/pdf', 'paymentsPdf')->name('admin.reports.payments.pdf');
 });

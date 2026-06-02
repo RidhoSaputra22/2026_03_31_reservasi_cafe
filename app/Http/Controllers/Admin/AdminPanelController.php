@@ -122,6 +122,15 @@ class AdminPanelController extends Controller
         return view('admin.reservations', [
             'reservations' => $query->paginate(10),
             'statusOptions' => $this->enumOptions(ReservationStatus::cases()),
+            'tableOptions' => CafeTable::query()
+                ->orderBy('name')
+                ->get()
+                ->map(fn (CafeTable $table): array => [
+                    'value' => $table->id,
+                    'label' => trim($table->code.' · '.$table->name.($table->location ? ' ('.$table->location.')' : '')),
+                ])
+                ->values()
+                ->all(),
         ]);
     }
 
@@ -363,6 +372,12 @@ class AdminPanelController extends Controller
             'payments' => $query->paginate(10),
             'statusOptions' => $this->enumOptions(PaymentStatus::cases()),
             'methodOptions' => $this->enumOptions(PaymentMethod::cases()),
+            'typeOptions' => $this->enumOptions(PaymentType::cases()),
+            'dateFieldOptions' => [
+                ['value' => 'paid_at', 'label' => 'Tanggal dibayar'],
+                ['value' => 'verified_at', 'label' => 'Tanggal diverifikasi'],
+                ['value' => 'created_at', 'label' => 'Tanggal dibuat'],
+            ],
         ]);
     }
 

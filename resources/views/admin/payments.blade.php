@@ -1,8 +1,29 @@
 @extends('admin.layouts.app', ['title' => 'Panel Pembayaran', 'breadcrumbs' => [['label' => 'Pembayaran']]])
 
+@php
+    $paymentStatusFilterOptions = collect([['value' => '', 'label' => 'Semua status']])
+        ->concat($statusOptions)
+        ->all();
+    $paymentMethodFilterOptions = collect([['value' => '', 'label' => 'Semua metode']])
+        ->concat($methodOptions)
+        ->all();
+    $paymentTypeFilterOptions = collect([['value' => '', 'label' => 'Semua jenis']])
+        ->concat($typeOptions)
+        ->all();
+@endphp
+
 @section('header')
     <x-layouts.page-header title="Panel Pembayaran" description="Validasi DP, metode pembayaran, referensi transaksi, dan status reservasi terkait.">
         <x-slot:actions>
+            <x-ui.button type="secondary" size="sm" :isSubmit="false"
+                onclick="document.getElementById('export-payments-pdf-modal').showModal()">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 16V4m0 12-4-4m4 4 4-4M4 20h16" />
+                </svg>
+                Export PDF
+            </x-ui.button>
             <x-ui.button :href="route('admin.reservations.index')" type="ghost" size="sm" :isSubmit="false">Buka Reservasi</x-ui.button>
         </x-slot:actions>
     </x-layouts.page-header>
@@ -53,5 +74,27 @@
                 </x-slot:filters>
             </x-ui.data-table>
         </x-ui.card>
+
+        <x-reports.export-pdf-modal
+            id="export-payments-pdf-modal"
+            title="Export Historis Pembayaran"
+            description="Pilih filter transaksi yang ingin dimasukkan ke file PDF. Sangat cocok untuk arsip verifikasi, pembukuan, atau laporan bulanan."
+            :action="route('admin.reports.payments.pdf')"
+        >
+            <x-ui.input name="search" label="Kata Kunci" placeholder="Kode pembayaran, kode reservasi, nama pelanggan"
+                :value="request('search')" />
+            <x-ui.select name="date_field" label="Basis Tanggal" :options="$dateFieldOptions"
+                :selected="request('date_field', 'paid_at')" />
+            <x-ui.input name="date_from" type="date" label="Dari Tanggal" :value="request('date_from')" />
+            <x-ui.input name="date_until" type="date" label="Sampai Tanggal" :value="request('date_until')" />
+            <x-ui.select name="status" label="Status Pembayaran" :options="$paymentStatusFilterOptions"
+                :selected="request('status')" :placeholder="false" />
+            <x-ui.select name="method" label="Metode Pembayaran" :options="$paymentMethodFilterOptions"
+                :selected="request('method')" :placeholder="false" />
+            <x-ui.select name="type" label="Jenis Pembayaran" :options="$paymentTypeFilterOptions"
+                :selected="request('type')" :placeholder="false" />
+            <x-ui.input name="min_amount" type="number" min="0" label="Nominal Minimum"
+                placeholder="Contoh: 50000" :value="request('min_amount')" />
+        </x-reports.export-pdf-modal>
     </div>
 @endsection

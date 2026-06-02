@@ -47,18 +47,18 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                 </svg>
             </label>
-            <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box w-56 shadow-lg mt-2 p-2">
+            <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box w-80 shadow-lg mt-2 p-2">
                 <li class="menu-title">
                     <span class="text-xs text-base-content/60">{{ $adminUser?->email ?? 'admin@amikospace.test' }}</span>
                 </li>
                 <li>
-                    <a href="{{ route('admin.profile.index') }}">
+                    <a href="{{ route('admin.profile.index') }}" class="flex gap-3 items-center justify-start">
                         <x-ui.fab.icon name="store" class="h-4 w-4" />
                         Profil Cafe
                     </a>
                 </li>
                 <li>
-                    <a href="{{ route('landing') }}">
+                    <a href="{{ route('landing') }}" class="flex gap-3 items-center justify-start">
                         <x-ui.fab.icon name="external" class="h-4 w-4" />
                         Lihat Website
                     </a>
@@ -66,11 +66,11 @@
                 <li>
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
-                        <button type="submit" class="w-full justify-start">
+                        <button type="submit" class="w-full flex gap-3 items-center justify-start">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12H3m4-4-4 4 4 4m5-12h5a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-5" />
                             </svg>
-                            Logout
+                            <p>Logout</p>
                         </button>
                     </form>
                 </li>

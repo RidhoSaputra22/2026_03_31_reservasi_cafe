@@ -1,8 +1,26 @@
 @extends('admin.layouts.app', ['title' => 'Panel Reservasi', 'breadcrumbs' => [['label' => 'Reservasi']]])
 
+@php
+    $reservationStatusFilterOptions = collect([['value' => '', 'label' => 'Semua status']])
+        ->concat($statusOptions)
+        ->all();
+    $reservationTableFilterOptions = collect([['value' => '', 'label' => 'Semua meja']])
+        ->concat($tableOptions)
+        ->all();
+@endphp
+
 @section('header')
     <x-layouts.page-header title="Panel Reservasi" description="Kelola booking pelanggan, status konfirmasi, check-in, pembatalan, dan histori reservasi.">
         <x-slot:actions>
+            <x-ui.button type="secondary" size="sm" :isSubmit="false"
+                onclick="document.getElementById('export-reservations-pdf-modal').showModal()">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 16V4m0 12-4-4m4 4 4-4M4 20h16" />
+                </svg>
+                Export PDF
+            </x-ui.button>
             <x-ui.button :href="route('admin.payments.index')" type="warning" size="sm" :isSubmit="false">Cek Pembayaran</x-ui.button>
         </x-slot:actions>
     </x-layouts.page-header>
@@ -66,5 +84,25 @@
                 </x-slot:filters>
             </x-ui.data-table>
         </x-ui.card>
+
+        <x-reports.export-pdf-modal
+            id="export-reservations-pdf-modal"
+            title="Export Historis Reservasi"
+            description="Susun filter laporan reservasi sebelum file PDF diunduh. Filter ini tidak akan mengubah tabel yang sedang tampil di halaman."
+            :action="route('admin.reports.reservations.pdf')"
+        >
+            <x-ui.input name="search" label="Kata Kunci" placeholder="Kode reservasi, nama pelanggan, nomor telepon"
+                :value="request('search')" />
+            <x-ui.select name="status" label="Status Reservasi" :options="$reservationStatusFilterOptions" :selected="request('status')"
+                :placeholder="false" />
+            <x-ui.input name="date_from" type="date" label="Dari Tanggal"
+                :value="request('date_from', request('date'))" />
+            <x-ui.input name="date_until" type="date" label="Sampai Tanggal"
+                :value="request('date_until', request('date'))" />
+            <x-ui.select name="cafe_table_id" label="Meja / Area" :options="$reservationTableFilterOptions"
+                :selected="request('cafe_table_id')" :placeholder="false" />
+            <x-ui.input name="min_guest_count" type="number" min="1" label="Minimum Tamu"
+                placeholder="Contoh: 4" :value="request('min_guest_count')" />
+        </x-reports.export-pdf-modal>
     </div>
 @endsection
