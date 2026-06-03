@@ -1,6 +1,10 @@
-<x-layouts.app>
+<x-layouts.app :flash-global="false">
+    <div class="absolute left-4 right-4 top-4 z-20 sm:left-auto sm:right-4 sm:w-full sm:max-w-xl">
+        <x-feedback.flash :fixed="false" />
+    </div>
+
     <main class="min-h-screen flex items-center justify-center bg-white">
-        <section class="w-full max-w-5xl grid grid-cols-2 shadow-xl rounded-md overflow-hidden">
+        <section class="relative w-full max-w-5xl grid grid-cols-2 shadow-xl rounded-md overflow-hidden">
 
            <div class="flex-1 bg-coffee-900 w-full  relative" style="background-image: url('{{ asset('assets/images/hero.jpg') }}'); background-size: cover; background-position: center;">
 
@@ -25,17 +29,6 @@
                     <p class="mt-2 text-sm leading-6 text-coffee-600">Isi data singkat untuk membuat akun pelanggan.
                     </p>
                 </div>
-
-                @if ($errors->any())
-                    <div class="mb-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                        <p class="font-black text-red-900">Registrasi belum berhasil</p>
-                        <ul class="mt-2 space-y-1">
-                            @foreach ($errors->all() as $error)
-                                <li>{{ $error }}</li>
-                            @endforeach
-                        </ul>
-                    </div>
-                @endif
 
                 <form method="POST" action="{{ route('register.store') }}" class="space-y-5">
                     @csrf

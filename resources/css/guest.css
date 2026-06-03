@@ -31,25 +31,155 @@
         display: none !important;
     }
 
+    .guest-shell {
+        --guest-radius-lg: 0.875rem;
+        --guest-radius-md: 0.625rem;
+        --guest-radius-sm: 0.5rem;
+    }
+
+    .guest-shell .rounded-\[2rem\],
+    .guest-shell .rounded-\[28px\],
+    .guest-shell .rounded-3xl,
+    .guest-shell .rounded-2xl {
+        border-radius: var(--guest-radius-lg);
+    }
+
+    .guest-shell .rounded-\[24px\],
+    .guest-shell .rounded-xl,
+    .guest-shell .rounded-lg,
+    .guest-shell .rounded-md {
+        border-radius: var(--guest-radius-md);
+    }
+
+    .guest-shell .rounded-sm {
+        border-radius: var(--guest-radius-sm);
+    }
+
+    .guest-shell :is(a, button, div, span, input, select, textarea).rounded-full {
+        border-radius: var(--guest-radius-lg);
+    }
 
 }
 
 @layer components {
+    .guest-flash-stack {
+        @apply pointer-events-none fixed inset-0 z-[120] flex items-center justify-center px-4 py-6;
+    }
+
+    .guest-flash-stack-inline {
+        @apply flex flex-col gap-3;
+    }
+
+    .guest-flash {
+        @apply pointer-events-auto grid w-full max-w-xl grid-cols-[auto_1fr_auto] items-start gap-4 rounded-md border bg-white/96 px-5 py-4 text-coffee-800 shadow-lg;
+    }
+
+    .guest-flash--success {
+        @apply border-emerald-200/80;
+
+    }
+
+    .guest-flash--error {
+        @apply border-rose-200/90;
+
+    }
+
+    .guest-flash--warning {
+        @apply border-amber-200/90;
+
+    }
+
+    .guest-flash--info {
+        @apply border-sky-200/90;
+
+    }
+
+    .guest-flash__icon {
+        @apply mt-0.5 flex h-11 w-11 items-center justify-center rounded-md;
+    }
+
+    .guest-flash--success .guest-flash__icon {
+        @apply bg-emerald-100 text-emerald-700;
+    }
+
+    .guest-flash--error .guest-flash__icon {
+        @apply bg-rose-100 text-rose-700;
+    }
+
+    .guest-flash--warning .guest-flash__icon {
+        @apply bg-amber-100 text-amber-700;
+    }
+
+    .guest-flash--info .guest-flash__icon {
+        @apply bg-sky-100 text-sky-700;
+    }
+
+    .guest-flash__icon svg {
+        @apply h-5 w-5;
+    }
+
+    .guest-flash__content {
+        @apply min-w-0;
+    }
+
+    .guest-flash__title {
+        @apply text-sm font-black uppercase tracking-[0.18em] text-coffee-500;
+    }
+
+    .guest-flash__message {
+        @apply mt-1 text-sm leading-6 text-coffee-700;
+    }
+
+    .guest-flash__message p {
+        @apply m-0;
+    }
+
+    .guest-flash__list {
+        @apply m-0 space-y-1 pl-5;
+        list-style: disc;
+    }
+
+    .guest-flash__close {
+        @apply inline-flex h-10 w-10 items-center justify-center rounded-sm text-coffee-400 transition hover:bg-coffee-50 hover:text-coffee-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-coffee-100;
+    }
+
+    .guest-flash__close svg {
+        @apply h-4 w-4;
+    }
+
     .panel-surface {
         @apply rounded-sm border border-coffee-100 bg-white;
         box-shadow: 0 24px 72px rgba(22, 16, 13, 0.08);
     }
 
     .pill-button-dark {
-        @apply inline-flex items-center justify-center rounded-xl cursor-pointer bg-coffee-900 px-6 py-3 text-sm font-black uppercase tracking-[0.16em] text-white transition duration-200 hover:-translate-y-0.5 hover:bg-coffee-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-coffee-100;
+        @apply inline-flex items-center justify-center rounded-md cursor-pointer bg-coffee-900 px-6 py-3 text-sm font-black uppercase tracking-[0.16em] text-white transition duration-200 hover:-translate-y-0.5 hover:bg-coffee-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-coffee-100;
     }
 
     .pill-button-light {
-        @apply inline-flex items-center justify-center rounded-full border border-coffee-200 bg-white px-6 py-3 text-sm font-black text-coffee-700 transition duration-200 hover:border-coffee-300 hover:bg-coffee-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-coffee-100;
+        @apply inline-flex items-center justify-center rounded-md border border-coffee-200 bg-white px-6 py-3 text-sm font-black text-coffee-700 transition duration-200 hover:border-coffee-300 hover:bg-coffee-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-coffee-100;
     }
 
     .form-field {
         @apply w-full rounded-md border border-coffee-200 bg-white px-4 py-3 text-coffee-900 transition placeholder:text-coffee-400 focus:border-coffee-400 focus:outline-none focus:ring-4 focus:ring-coffee-100/80;
+    }
+}
+
+@media (max-width: 640px) {
+    .guest-flash {
+        @apply grid-cols-[1fr_auto] gap-3 rounded-lg px-4 py-3;
+    }
+
+    .guest-flash__icon {
+        @apply col-span-2 mt-0 h-10 w-10 rounded-md;
+    }
+
+    .guest-flash__content {
+        @apply col-span-1;
+    }
+
+    .guest-flash__close {
+        @apply h-9 w-9 self-start rounded-sm;
     }
 }
 

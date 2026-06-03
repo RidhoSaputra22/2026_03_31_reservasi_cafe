@@ -1,3 +1,7 @@
+@props([
+    'flashGlobal' => true,
+])
+
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 
@@ -41,40 +45,12 @@
 
 </head>
 
-<body class="antialiased h-auto">
-    @if (session('success') || session('error') || $errors->any())
-        <div class="fixed inset-x-0 top-4 z-[90] px-4">
-            <div class="mx-auto flex max-w-3xl flex-col gap-3">
-                @if (session('success'))
-                    <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-medium text-emerald-800 shadow-lg">
-                        {{ session('success') }}
-                    </div>
-                @endif
-
-                @if (session('error'))
-                    <div class="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-medium text-red-800 shadow-lg">
-                        {{ session('error') }}
-                    </div>
-                @endif
-
-                @if ($errors->any())
-                    <div class="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-medium text-amber-800 shadow-lg">
-                        <p class="font-semibold">Masih ada data yang perlu diperbaiki.</p>
-                        <ul class="mt-2 list-disc space-y-1 pl-5">
-                            @foreach ($errors->all() as $error)
-                                <li>{{ $error }}</li>
-                            @endforeach
-                        </ul>
-                    </div>
-                @endif
-            </div>
-        </div>
+<body class="guest-shell antialiased h-auto">
+    @if ($flashGlobal)
+        <x-feedback.flash />
     @endif
 
     {{ $slot }}
-
-
-
 
     {{-- Swiper --}}
     <script src="https://cdn.jsdelivr.net/npm/swiper@12/swiper-bundle.min.js"></script>
