@@ -25,7 +25,7 @@
                         placeholder="Nama kamu">
                 </div>
             @else
-                <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm font-light text-gray-600">
+                <div class="rounded-md border border-gray-200 bg-gray-50 p-4 text-sm font-light text-gray-600">
                     Ulasan akan dikirim sebagai <span class="font-semibold text-primary">{{ auth()->user()->name }}</span>.
                 </div>
             @endguest

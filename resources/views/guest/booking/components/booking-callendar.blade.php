@@ -17,7 +17,7 @@
 
     <input type="hidden" name="start_time" :value="selectedTime">
 
-    <div class="rounded-2xl border border-gray-100 bg-gray-50 p-4 text-sm font-light text-gray-600">
+    <div class="rounded-md border border-gray-100 bg-gray-50 p-4 text-sm font-light text-gray-600">
         <p class="font-semibold text-primary" x-text="selectedDateLabel"></p>
         <p class="mt-1" x-show="message" x-text="message"></p>
         <p class="mt-1" x-show="!message">Pilih salah satu slot yang masih tersedia untuk melanjutkan reservasi.</p>
@@ -26,7 +26,7 @@
     <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         <template x-for="slot in slots" :key="slot.time">
             <button type="button" @click="selectTime(slot.time)" :disabled="!slot.available"
-                class="rounded-2xl border px-4 py-4 text-left transition"
+                class="rounded-md border px-4 py-4 text-left transition cursor-pointer"
                 :class="slot.available
                     ? (selectedTime === slot.time
                         ? 'border-primary bg-primary text-white'
@@ -40,10 +40,10 @@
     </div>
 
     <div class="grid gap-3 text-sm font-light text-gray-600 md:grid-cols-2">
-        <div class="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+        <div class="rounded-md border border-gray-100 bg-gray-50 p-4">
             Durasi reservasi: <span class="font-semibold text-primary">{{ $package['duration'] }}</span>
         </div>
-        <div class="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+        <div class="rounded-md border border-gray-100 bg-gray-50 p-4">
             <span x-show="selectedTime">Jam terpilih: <span class="font-semibold text-primary" x-text="selectedTime"></span></span>
             <span x-show="!selectedTime">Belum ada slot yang dipilih.</span>
         </div>

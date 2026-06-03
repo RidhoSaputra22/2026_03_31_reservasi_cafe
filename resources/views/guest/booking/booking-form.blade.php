@@ -12,7 +12,7 @@
     initialMessage: @js($availability['message']),
 })">
     <div class="space-y-5 rounded-md border border-gray-100 bg-white p-6 shadow-sm">
-        <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm font-light text-gray-600">
+        <div class="rounded-md border border-gray-200 bg-gray-50 p-4 text-sm font-light text-gray-600">
             Reservasi akan menggunakan slot aktif dari sistem admin dan meja akan dipilih otomatis sesuai jumlah tamu.
         </div>
 
@@ -22,17 +22,17 @@
         </div>
 
         @guest
-            <div class="space-y-4 rounded-2xl border border-dashed border-primary/30 bg-primary/5 p-5 text-primary">
+            <div class="space-y-4 rounded-md border border-dashed border-primary/30 bg-primary/5 p-5 text-primary">
                 <p class="text-sm font-medium">
                     Kamu perlu masuk sebagai pelanggan terlebih dahulu untuk membuat reservasi.
                 </p>
                 <div class="flex flex-wrap gap-3">
                     <a href="{{ route('login', ['redirect' => url()->current()]) }}"
-                        class="rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-primary/90">
+                        class="rounded-md bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-primary/90">
                         Masuk Sekarang
                     </a>
                     <a href="{{ route('register', ['redirect' => url()->current()]) }}"
-                        class="rounded-xl border border-primary/20 px-4 py-3 text-sm font-semibold text-primary transition hover:border-primary hover:bg-white">
+                        class="rounded-md border border-primary/20 px-4 py-3 text-sm font-semibold text-primary transition hover:border-primary hover:bg-white">
                         Buat Akun Pelanggan
                     </a>
                 </div>
@@ -45,19 +45,19 @@
                     <div class="space-y-2">
                         <label class="text-sm font-medium text-primary">Nama Lengkap</label>
                         <input type="text" name="customer_name" value="{{ old('customer_name', $user?->name) }}"
-                            class="w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-700" required>
+                            class="w-full rounded-md border border-gray-200 px-4 py-3 text-gray-700" required>
                     </div>
 
                     <div class="space-y-2">
                         <label class="text-sm font-medium text-primary">Email</label>
                         <input type="email" value="{{ $user?->email }}"
-                            class="w-full rounded-xl border border-gray-200 bg-gray-100 px-4 py-3 text-gray-700" readonly>
+                            class="w-full rounded-md border border-gray-200 bg-gray-100 px-4 py-3 text-gray-700" readonly>
                     </div>
 
                     <div class="space-y-2">
                         <label class="text-sm font-medium text-primary">Nomor Telepon</label>
                         <input type="text" name="customer_phone" value="{{ old('customer_phone', $user?->phone_number) }}"
-                            class="w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-700" required>
+                            class="w-full rounded-md border border-gray-200 px-4 py-3 text-gray-700" required>
                     </div>
                 </div>
 
@@ -65,7 +65,7 @@
 
                 <div class="space-y-2">
                     <label class="text-sm font-medium text-primary">Metode Pembayaran</label>
-                    <select name="payment_method" class="w-full rounded-xl border border-gray-200 px-4 py-3">
+                    <select name="payment_method" class="w-full rounded-md border border-gray-200 px-4 py-3">
                         @foreach ($paymentMethods as $method)
                             <option value="{{ $method->value }}" @selected($selectedPaymentMethod === $method->value)>
                                 {{ $method->label() }}
@@ -82,13 +82,13 @@
 
                 <div class="space-y-2">
                     <label class="text-sm font-medium text-primary">Catatan Tambahan</label>
-                    <textarea name="notes" rows="4" class="w-full rounded-xl border border-gray-200 px-4 py-3"
+                    <textarea name="notes" rows="4" class="w-full rounded-md border border-gray-200 px-4 py-3"
                         placeholder="Misalnya butuh meja dekat jendela, area yang lebih tenang, atau request khusus lainnya.">{{ old('notes') }}</textarea>
                 </div>
 
                 <div>
                     <button type="submit" :disabled="loading || !selectedTime"
-                        class="w-full rounded-xl bg-primary px-4 py-3 font-semibold text-white transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-primary/50">
+                        class="w-full rounded-md bg-primary px-4 py-3 font-semibold text-white transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-primary/50">
                         <span x-show="!loading">Kirim Permintaan Reservasi</span>
                         <span x-show="loading" x-cloak>Memuat slot...</span>
                     </button>

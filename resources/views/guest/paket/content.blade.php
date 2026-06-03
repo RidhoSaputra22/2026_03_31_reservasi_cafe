@@ -2,6 +2,7 @@
     $packages = collect($packages ?? config('packages'))->values()->all();
     $categories = $categories ?? collect($packages)->pluck('category')->unique()->prepend('Semua Kategori')->values()->all();
     $durations = $durations ?? collect($packages)->pluck('duration')->unique()->prepend('Semua Durasi')->values()->all();
+    $resultsAnchor = 'package-results';
     $filters = $filters ?? [
         'q' => '',
         'category' => '',
@@ -12,10 +13,10 @@
 @endphp
 
 
-<section class="p-12 min-h-screen " id="#paginated-posts">
+<section class="p-12 min-h-screen scroll-mt-24" id="{{ $resultsAnchor }}">
     <div class="flex flex-col gap-10 xl:flex-row xl:gap-24">
         {{-- FILTER --}}
-        <form method="GET" action="{{ route('packages.index') }}"
+        <form method="GET" action="{{ route('packages.index') }}#{{ $resultsAnchor }}"
             class="rounded-2xl border border-gray-100 bg-white p-6 xl:w-80">
             <h1 class="mb-6 text-xl font-semibold">Filter Reservasi</h1>
 
@@ -72,10 +73,10 @@
 
                 <div class="flex gap-3">
                     <button type="submit"
-                        class="flex-1 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-primary/90">
+                        class="flex-1 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-primary/90 cursor-pointer">
                         Terapkan
                     </button>
-                    <a href="{{ route('packages.index') }}"
+                    <a href="{{ route('packages.index') }}#{{ $resultsAnchor }}"
                         class="rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-primary transition hover:border-primary hover:bg-primary/5">
                         Reset
                     </a>
