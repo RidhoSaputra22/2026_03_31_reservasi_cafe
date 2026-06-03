@@ -5,10 +5,10 @@
 @endphp
 
 <div>
-    <div class="space-y-5 rounded-md border border-gray-100 bg-white p-6 shadow-sm">
+    <div class="space-y-5 rounded-md border border-gray-100 bg-white p-6 shadow-sm ">
         <div class="space-y-3">
             <div class="rounded-md border border-gray-200 bg-gray-50 p-4 text-sm font-light text-gray-600">
-                Tentukan sendiri tanggal, jam mulai, dan durasi kunjunganmu. Sistem akan menyesuaikan dengan rentang jam aktif admin dan menghitung total harga secara otomatis.
+                Tentukan tanggal, jam mulai, dan durasi kunjunganmu. Sistem akan menyesuaikan dengan rentang jam aktif admin dan menghitung total harga secara otomatis.
             </div>
 
             <div class="space-y-2">
@@ -37,7 +37,7 @@
             <form method="POST" action="{{ route('booking.store', ['slug' => $package['slug']]) }}" class="space-y-5">
                 @csrf
 
-                <div class="space-y-4">
+                <div class="space-y-4 ">
                     <div class="space-y-2">
                         <label class="text-sm font-medium text-primary">Nama Lengkap</label>
                         <input type="text" name="customer_name" value="{{ old('customer_name', $user?->name) }}"
@@ -76,11 +76,7 @@
                     @endif
                 </div>
 
-                <div class="space-y-2">
-                    <label class="text-sm font-medium text-primary">Catatan Tambahan</label>
-                    <textarea name="notes" rows="4" class="w-full rounded-md border border-gray-200 px-4 py-3"
-                        placeholder="Misalnya butuh meja dekat jendela, area yang lebih tenang, atau request khusus lainnya.">{{ old('notes') }}</textarea>
-                </div>
+
 
                 <div>
                     <button type="submit" :disabled="loading || !reservationDate || !startTime || !isAvailable()"

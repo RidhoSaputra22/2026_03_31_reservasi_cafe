@@ -36,6 +36,18 @@ function normalizeTime(value) {
     return `${match[1]}:${match[2]}`;
 }
 
+function formatTimeInput(value) {
+    if (typeof window.formatTime24hInput === 'function') {
+        return window.formatTime24hInput(value);
+    }
+
+    return String(value ?? '').replace(/[^\d:]/g, '').slice(0, 5);
+}
+
+function isCompleteTime(value) {
+    return normalizeTime(value) !== '';
+}
+
 function addHoursToTime(value, hours) {
     const normalized = normalizeTime(value);
     const numericHours = Number(hours || 0);
@@ -93,7 +105,14 @@ document.addEventListener('alpine:init', () => {
 
             this.$watch('reservationDate', () => this.queueRefresh());
             this.$watch('startTime', (value) => {
-                this.startTime = normalizeTime(value);
+                const formattedValue = formatTimeInput(value);
+
+                if (formattedValue !== value) {
+                    this.startTime = formattedValue;
+
+                    return;
+                }
+
                 this.queueRefresh();
             });
             this.$watch('durationHours', (value) => {
@@ -127,13 +146,14 @@ document.addEventListener('alpine:init', () => {
 
         async fetchAvailability() {
             this.estimatedPrice = Number(this.estimatedPrice || 0);
+            const normalizedStartTime = normalizeTime(this.startTime);
 
-            if (!this.reservationDate || !this.startTime || !this.durationHours || !this.guestCount) {
+            if (!this.reservationDate || !normalizedStartTime || !this.durationHours || !this.guestCount) {
                 this.availability = {
                     ...(this.availability || {}),
                     message: 'Lengkapi tanggal, jam mulai, durasi, dan jumlah tamu untuk mengecek ketersediaan.',
                     is_available: false,
-                    start_time: this.startTime || null,
+                    start_time: normalizedStartTime || null,
                     end_time: this.endTimePreview() || null,
                 };
 
@@ -145,7 +165,7 @@ document.addEventListener('alpine:init', () => {
             try {
                 const url = new URL(this.availabilityUrl, window.location.origin);
                 url.searchParams.set('date', this.reservationDate);
-                url.searchParams.set('start_time', this.startTime);
+                url.searchParams.set('start_time', normalizedStartTime);
                 url.searchParams.set('duration_hours', this.durationHours);
                 url.searchParams.set('guest_count', this.guestCount);
 
@@ -164,7 +184,7 @@ document.addEventListener('alpine:init', () => {
                 this.availability = payload;
                 this.estimatedPrice = Number(payload.estimated_price || 0);
                 this.estimatedPriceLabel = payload.estimated_price_label || this.estimatedPriceLabel;
-                this.startTime = normalizeTime(payload.start_time || this.startTime);
+                this.startTime = normalizeTime(payload.start_time || normalizedStartTime);
             } catch (error) {
                 this.availability = {
                     ...(this.availability || {}),
@@ -195,6 +215,10 @@ document.addEventListener('alpine:init', () => {
         reservationTimeLabel() {
             if (!this.startTime) {
                 return 'Belum dipilih';
+            }
+
+            if (!isCompleteTime(this.startTime)) {
+                return this.startTime;
             }
 
             const endTime = this.endTimePreview();

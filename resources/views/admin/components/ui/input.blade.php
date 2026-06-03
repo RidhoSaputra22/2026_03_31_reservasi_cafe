@@ -40,6 +40,10 @@
         'lg' => 'file-input-lg',
         default => 'file-input-md',
     };
+
+    $localizedInputAttributes = in_array($type, ['date', 'time', 'datetime-local'], true)
+        ? ['lang' => 'id']
+        : [];
 @endphp
 
 @if($type === 'hidden')
@@ -79,7 +83,7 @@
                     value="{{ old($name, $value) }}"
                     {{ $attributes->merge([
                         'class' => 'input input-bordered w-full pr-12 ' . $sizeClass . ($error ? ' input-error' : '')
-                    ]) }}
+                    ] + $localizedInputAttributes) }}
                     {{ $required ? 'required' : '' }}
                 />
 
@@ -100,6 +104,35 @@
                             d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
                     </svg>
                 </button>
+            </div>
+        @elseif ($type === 'time')
+            <div class="relative">
+                <input
+                    type="text"
+                    id="{{ $inputId }}"
+                    name="{{ $name }}"
+                    placeholder="{{ $placeholder !== '' ? $placeholder : '08:00' }}"
+                    value="{{ old($name, $value) }}"
+                    inputmode="numeric"
+                    maxlength="5"
+                    autocomplete="off"
+                    spellcheck="false"
+                    pattern="^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                    title="Gunakan format 24 jam, misalnya 08:00 atau 17:30."
+                    oninput="this.value = window.formatTime24hInput(this.value)"
+                    onblur="this.value = window.normalizeTime24hInput(this.value)"
+                    {{ $attributes->merge([
+                        'class' => 'input input-bordered w-full pr-12 ' . $sizeClass . ($error ? ' input-error' : '')
+                    ] + $localizedInputAttributes) }}
+                    {{ $required ? 'required' : '' }}
+                />
+
+                <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-base-content/50">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+                            d="M12 6v6l4 2m5-2a9 9 0 11-18 0 9 9 0 0118 0Z" />
+                    </svg>
+                </span>
             </div>
         @elseif ($type === 'file')
             <div class="flex items-center gap-2">
@@ -127,7 +160,7 @@
                     value="{{ old($name, $value) }}"
                     {{ $attributes->merge([
                         'class' => 'input input-bordered w-full ' . $sizeClass . ($error ? ' input-error' : '')
-                    ]) }}
+                    ] + $localizedInputAttributes) }}
                     {{ $required ? 'required' : '' }}
                 />
             </div>
@@ -147,7 +180,7 @@
     </div>
 @endif
 
-@if($type === 'password')
+@if(in_array($type, ['password', 'time'], true))
     @once
         <script>
             function togglePassword(inputId) {

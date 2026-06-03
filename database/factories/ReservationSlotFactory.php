@@ -17,13 +17,15 @@ class ReservationSlotFactory extends Factory
      */
     public function definition(): array
     {
-        $startHour = fake()->randomElement([10, 13, 16, 18]);
+        $startHour = fake()->numberBetween(8, 14);
+        $durationHours = fake()->numberBetween(1, 3);
+        $endHour = min(17, $startHour + $durationHours);
 
         return [
-            'name' => fake()->randomElement(['Brunch', 'Lunch', 'Afternoon', 'Dinner']),
+            'name' => fake()->randomElement(['Jam Operasional', 'Reguler', 'Reservasi Harian']),
             'day_of_week' => fake()->numberBetween(0, 6),
             'start_time' => sprintf('%02d:00:00', $startHour),
-            'end_time' => sprintf('%02d:00:00', $startHour + 2),
+            'end_time' => sprintf('%02d:00:00', $endHour),
             'is_active' => true,
         ];
     }

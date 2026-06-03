@@ -6,6 +6,70 @@ import './guest-booking';
 const CART_KEY = 'AMIKOSPACE_cart';
 const RESERVATION_KEY = 'AMIKOSPACE_last_reservation';
 
+function splitTime24hInput(value) {
+    const cleaned = String(value ?? '').replace(/[^\d:]/g, '');
+
+    if (cleaned === '') {
+        return ['', ''];
+    }
+
+    if (cleaned.includes(':')) {
+        const [hoursPart = '', minutesPart = ''] = cleaned.split(':', 2);
+
+        return [
+            hoursPart.replace(/\D/g, '').slice(0, 2),
+            minutesPart.replace(/\D/g, '').slice(0, 2),
+        ];
+    }
+
+    const digits = cleaned.replace(/\D/g, '').slice(0, 4);
+
+    if (digits.length <= 2) {
+        return [digits, ''];
+    }
+
+    return [digits.slice(0, 2), digits.slice(2)];
+}
+
+function formatTime24hInput(value) {
+    const [hours, minutes] = splitTime24hInput(value);
+
+    if (hours === '' && minutes === '') {
+        return '';
+    }
+
+    return minutes !== '' ? `${hours}:${minutes}` : hours;
+}
+
+function normalizeTime24hInput(value) {
+    const [rawHours, rawMinutes] = splitTime24hInput(value);
+
+    if (rawHours === '' && rawMinutes === '') {
+        return '';
+    }
+
+    const hours = rawHours.padStart(2, '0').slice(0, 2);
+    const minutes = (rawMinutes === '' ? '00' : rawMinutes.padEnd(2, '0')).slice(0, 2);
+    const normalized = `${hours}:${minutes}`;
+    const [numericHours, numericMinutes] = normalized.split(':').map(Number);
+
+    if (
+        !Number.isInteger(numericHours)
+        || !Number.isInteger(numericMinutes)
+        || numericHours < 0
+        || numericHours > 23
+        || numericMinutes < 0
+        || numericMinutes > 59
+    ) {
+        return formatTime24hInput(value);
+    }
+
+    return normalized;
+}
+
+window.formatTime24hInput = formatTime24hInput;
+window.normalizeTime24hInput = normalizeTime24hInput;
+
 function rupiah(amount) {
     return new Intl.NumberFormat('id-ID', {
         style: 'currency',

@@ -22,7 +22,9 @@ class ReservationFactory extends Factory
     public function definition(): array
     {
         $reservationDate = fake()->dateTimeBetween('+1 day', '+30 days');
-        $startHour = fake()->randomElement([10, 13, 16, 18]);
+        $startHour = fake()->numberBetween(8, 15);
+        $durationHours = fake()->numberBetween(1, 2);
+        $endHour = min(17, $startHour + $durationHours);
 
         return [
             'reservation_code' => strtoupper(fake()->unique()->bothify('RSV-####??')),
@@ -34,8 +36,8 @@ class ReservationFactory extends Factory
             'customer_phone' => fake()->numerify('08##########'),
             'reservation_date' => $reservationDate->format('Y-m-d'),
             'start_time' => sprintf('%02d:00:00', $startHour),
-            'end_time' => sprintf('%02d:00:00', $startHour + 2),
-            'duration_hours' => 2,
+            'end_time' => sprintf('%02d:00:00', $endHour),
+            'duration_hours' => $durationHours,
             'guest_count' => fake()->numberBetween(1, 8),
             'notes' => fake()->optional()->sentence(),
             'amount_due' => fake()->randomFloat(2, 25000, 150000),
