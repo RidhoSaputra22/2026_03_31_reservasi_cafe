@@ -3,7 +3,7 @@
     <section class="flex w-full flex-col gap-10 px-6 py-20 md:flex-row md:p-24">
         <div class="flex-1" data-aos="fade-up">
             <img src="{{ asset('assets/images/about.png') }}" alt="Suasana Cafe Amiko"
-                class="h-full w-full rounded-[2rem] object-cover shadow-xl">
+                class="h-full w-full rounded-md object-cover shadow-xl">
         </div>
         <div class="flex-1  text-primary pt-8" data-aos="fade-up">
             <div class="">

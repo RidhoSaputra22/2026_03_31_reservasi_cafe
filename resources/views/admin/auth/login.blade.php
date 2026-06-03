@@ -1,6 +1,6 @@
 <x-layouts.guest title="Login Admin">
     <main class="min-h-screen w-full p-4 sm:p-6 lg:p-8">
-        <div class="mx-auto grid min-h-[calc(100vh-4rem)] max-w-6xl overflow-hidden rounded-[2rem] border border-base-300/70 bg-base-100/80 shadow-2xl lg:grid-cols-[0.95fr_1.05fr]">
+        <div class="mx-auto grid min-h-[calc(100vh-4rem)] max-w-6xl overflow-hidden rounded-md border border-base-300/70 bg-base-100/80 shadow-2xl lg:grid-cols-[0.95fr_1.05fr]">
             <aside class="relative hidden overflow-hidden bg-primary p-10 text-primary-content lg:flex lg:flex-col lg:justify-between">
                 <div class="absolute -left-24 top-16 h-72 w-72 rounded-full bg-white/10 blur-3xl"></div>
                 <div class="absolute -bottom-28 right-0 h-80 w-80 rounded-full bg-accent/30 blur-3xl"></div>

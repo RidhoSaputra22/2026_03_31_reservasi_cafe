@@ -11,7 +11,7 @@
     initialSlots: @js($availability['slots']),
     initialMessage: @js($availability['message']),
 })">
-    <div class="space-y-5 rounded-[2rem] border border-gray-100 bg-white p-6 shadow-sm">
+    <div class="space-y-5 rounded-md border border-gray-100 bg-white p-6 shadow-sm">
         <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm font-light text-gray-600">
             Reservasi akan menggunakan slot aktif dari sistem admin dan meja akan dipilih otomatis sesuai jumlah tamu.
         </div>

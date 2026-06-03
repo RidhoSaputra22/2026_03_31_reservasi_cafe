@@ -9,7 +9,7 @@
         </div>
         <div class="flex-1 md:-mt-14" data-aos="fade-up">
             <img src="{{ asset('assets/images/about.png') }}" alt="Suasana Cafe Amiko"
-                class="h-full w-full rounded-[2rem] object-cover shadow-2xl">
+                class="h-full w-full rounded-md object-cover shadow-2xl">
         </div>
     </section>
 

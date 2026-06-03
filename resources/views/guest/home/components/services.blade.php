@@ -20,7 +20,7 @@
             </div>
             <div class="flex-1 " data-aos="fade-up">
                 <img src="{{ asset('assets/images/hero.jpg') }}" alt="Reservasi unggulan Cafe Amiko"
-                    class="w-full rounded-[2rem] object-cover shadow-2xl">
+                    class="w-full rounded-md object-cover shadow-2xl">
             </div>
             <div class="py-14 ">
                 @foreach ($packages as $key => $item)
@@ -31,7 +31,7 @@
                         data-aos="fade-up">
                         <div class="flex-1">
                             <img src="{{ asset($item['image']) }}" alt="{{ $item['name'] }}"
-                                class="h-full w-full rounded-[2rem] object-cover shadow-xl">
+                                class="h-full w-full rounded-md object-cover shadow-xl">
                         </div>
                         <div class="flex-1 overflow-hidden space-y-5">
                             <h1 class="text-5xl/relaxed font-semibold uppercase">

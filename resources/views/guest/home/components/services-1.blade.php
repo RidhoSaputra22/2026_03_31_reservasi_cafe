@@ -12,10 +12,10 @@
     <div class="grid gap-5 overflow-visible md:grid-cols-2 xl:grid-cols-5">
         @foreach ($recommendedPackages as $package)
             <a href="{{ route('booking.show', ['slug' => $package['slug']]) }}"
-                class="group relative z-0 rounded-3xl border border-gray-100 bg-white p-4 shadow-sm transition hover:z-10 hover:-translate-y-1 hover:shadow-xl">
+                class="group relative z-0 rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition hover:z-10 hover:-translate-y-1 hover:shadow-xl">
                 <div class="relative">
                     <img src="{{ asset($package['image']) }}" alt="{{ $package['name'] }}"
-                        class="h-60 w-full rounded-2xl object-cover">
+                        class="h-60 w-full rounded-xl object-cover">
                     <div class="absolute left-3 top-3 rounded-full bg-primary px-3 py-1 text-sm font-medium text-white">
                         {{ $package['category'] }}
                     </div>

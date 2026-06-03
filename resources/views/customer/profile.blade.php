@@ -47,7 +47,7 @@
                 @php
                     $nextPayment = $nextReservation->payments->first();
                 @endphp
-                <div class="rounded-[2rem] border border-primary/15 bg-primary p-6 text-white shadow-xl">
+                <div class="rounded-md border border-primary/15 bg-primary p-6 text-white shadow-xl">
                     <p class="text-sm uppercase tracking-[0.3em] text-white/70">Reservasi Terdekat</p>
                     <div class="mt-4 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
                         <div class="space-y-2">
@@ -104,7 +104,7 @@
                                 ], true);
                             @endphp
                             <article id="reservation-{{ $reservation->id }}"
-                                class="rounded-[2rem] border bg-white p-6 shadow-sm {{ $isHighlighted ? 'border-primary shadow-primary/10' : 'border-gray-100' }}">
+                                class="rounded-md border bg-white p-6 shadow-sm {{ $isHighlighted ? 'border-primary shadow-primary/10' : 'border-gray-100' }}">
                                 <div class="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
                                     <div class="space-y-3">
                                         <div class="flex flex-wrap items-center gap-3">

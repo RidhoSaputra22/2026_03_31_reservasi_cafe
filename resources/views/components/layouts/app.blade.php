@@ -47,7 +47,10 @@
 
 <body class="guest-shell antialiased h-auto">
     @if ($flashGlobal)
-        <x-feedback.flash />
+    <div class="absolute fixed bottom-4 left-4 right-4 z-20 sm:right-auto sm:left-4 sm:w-full sm:max-w-xl">
+        <x-feedback.flash :fixed="false" />
+    </div>
+
     @endif
 
     {{ $slot }}

@@ -83,7 +83,7 @@
     }
 
     .panel-surface {
-        @apply rounded-[2rem] border border-coffee-100 bg-white;
+        @apply rounded-md border border-coffee-100 bg-white;
         box-shadow: 0 24px 72px rgba(22, 16, 13, 0.08);
     }
 
