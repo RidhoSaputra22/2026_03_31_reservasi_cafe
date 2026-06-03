@@ -1,6 +1,7 @@
 import Alpine from 'alpinejs';
 
 import './bootstrap';
+import './guest-booking';
 
 const CART_KEY = 'AMIKOSPACE_cart';
 const RESERVATION_KEY = 'AMIKOSPACE_last_reservation';

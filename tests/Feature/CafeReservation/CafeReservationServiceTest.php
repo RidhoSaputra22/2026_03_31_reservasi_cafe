@@ -151,6 +151,47 @@ class CafeReservationServiceTest extends TestCase
         });
     }
 
+    public function test_it_creates_a_reservation_with_full_payment_when_amount_is_explicitly_requested(): void
+    {
+        CafeProfile::factory()->create([
+            'down_payment_amount' => 50000,
+        ]);
+
+        User::factory()->admin()->create();
+        $customer = User::factory()->customer()->create();
+
+        CafeTable::factory()->create([
+            'capacity' => 4,
+        ]);
+
+        $date = Carbon::create(2026, 5, 26);
+        $this->createSlot($date, '10:00:00', '12:00:00', 'Brunch');
+
+        $result = app(CafeReservationService::class)->createReservation([
+            'user_id' => $customer->id,
+            'customer_name' => $customer->name,
+            'customer_phone' => $customer->phone_number,
+            'reservation_date' => $date->toDateString(),
+            'start_time' => '10:00',
+            'guest_count' => 2,
+            'payment' => [
+                'type' => PaymentType::FullPayment,
+                'method' => PaymentMethod::Cash,
+                'amount' => 150000,
+            ],
+        ]);
+
+        $reservation = $result['reservation'];
+        $payment = $result['payment'];
+
+        $this->assertNotNull($payment);
+        $this->assertSame(PaymentType::FullPayment, $payment->type);
+        $this->assertSame('150000.00', $payment->amount);
+        $this->assertSame('150000.00', $reservation->amount_due);
+        $this->assertSame(PaymentMethod::Cash, $payment->method);
+        $this->assertSame(PaymentStatus::Pending, $payment->status);
+    }
+
     public function test_it_syncs_payment_and_reservation_from_midtrans_notification(): void
     {
         config([

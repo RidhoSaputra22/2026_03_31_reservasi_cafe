@@ -163,6 +163,7 @@
     .form-field {
         @apply w-full rounded-md border border-coffee-200 bg-white px-4 py-3 text-coffee-900 transition placeholder:text-coffee-400 focus:border-coffee-400 focus:outline-none focus:ring-4 focus:ring-coffee-100/80;
     }
+
 }
 
 @media (max-width: 640px) {

@@ -1,24 +1,20 @@
 @php
     $user = auth()->user();
     $selectedPaymentMethod = old('payment_method', \App\Enums\PaymentMethod::Cash->value);
+    $downPaymentAmount = $downPaymentAmount ?? 0;
 @endphp
 
-<div x-data="bookingReservationForm({
-    availabilityUrl: @js(route('booking.availability', ['slug' => $package['slug']])),
-    initialDate: @js($selectedDate),
-    initialTime: @js($selectedTime),
-    initialGuestCount: @js($guestCount),
-    initialSlots: @js($availability['slots']),
-    initialMessage: @js($availability['message']),
-})">
+<div>
     <div class="space-y-5 rounded-md border border-gray-100 bg-white p-6 shadow-sm">
-        <div class="rounded-md border border-gray-200 bg-gray-50 p-4 text-sm font-light text-gray-600">
-            Reservasi akan menggunakan slot aktif dari sistem admin dan meja akan dipilih otomatis sesuai jumlah tamu.
-        </div>
+        <div class="space-y-3">
+            <div class="rounded-md border border-gray-200 bg-gray-50 p-4 text-sm font-light text-gray-600">
+                Reservasi akan menggunakan slot aktif dari sistem admin dan meja akan dipilih otomatis sesuai jumlah tamu.
+            </div>
 
-        <div class="space-y-2">
-            <h1 class="text-4xl font-bold">Reservasi Sekarang</h1>
-            <p class="text-sm font-light">Isi data singkat di bawah untuk mengamankan slot kunjunganmu di Cafe Amiko.</p>
+            <div class="space-y-2">
+                <h1 class="text-4xl font-bold">Reservasi Sekarang</h1>
+                <p class="text-sm font-light">Isi data singkat di bawah untuk mengamankan slot kunjunganmu di Cafe Amiko.</p>
+            </div>
         </div>
 
         @guest

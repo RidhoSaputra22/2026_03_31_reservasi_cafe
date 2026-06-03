@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers\Guest;
 
+use App\Enums\GuestPaymentPlan;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Guest\StoreGuestReservationRequest;
 use App\Http\Requests\Guest\StoreGuestReviewRequest;
 use App\Models\CafeProfile;
+use App\Models\CafeTable;
 use App\Models\GuestReview;
 use App\Models\ReservationSlot;
 use App\Services\CafePackageCatalog;
@@ -36,15 +38,18 @@ class BookingController extends Controller
     public function show(Request $request, string $slug): View|RedirectResponse
     {
         $package = $this->resolvePackage($slug);
+        $profile = CafeProfile::query()->first();
+        $maxGuestCount = $this->maxGuestCount();
 
         if ($slug !== $package['slug']) {
             return redirect()->route('booking.show', ['slug' => $package['slug']]);
         }
 
-        $guestCount = max(1, min(12, (int) old('guest_count', $request->integer('guest_count', 2))));
+        $guestCount = max(1, min($maxGuestCount, (int) old('guest_count', $request->integer('guest_count', 2))));
         $selectedDate = old('reservation_date', $request->string('date')->toString()) ?: $this->nextAvailableDate($guestCount);
         $availability = $this->availabilityPayload($selectedDate, $guestCount);
         $selectedTime = old('start_time', $this->firstAvailableTime($availability['slots']));
+        $downPaymentAmount = (float) ($profile?->down_payment_amount ?? 0);
         $reviewsQuery = GuestReview::query()
             ->where('package_slug', $package['slug'])
             ->where('is_published', true)
@@ -55,14 +60,15 @@ class BookingController extends Controller
             : null;
 
         return view('guest.booking.booking', [
-            'profile' => CafeProfile::query()->first(),
+            'profile' => $profile,
             'package' => $package,
             'selectedDate' => $selectedDate,
             'selectedTime' => $selectedTime,
             'guestCount' => $guestCount,
+            'maxGuestCount' => $maxGuestCount,
             'availability' => $availability,
             'paymentMethods' => PaymentMethod::cases(),
-            'downPaymentAmount' => (float) (CafeProfile::query()->value('down_payment_amount') ?? 0),
+            'downPaymentAmount' => $downPaymentAmount,
             'reviews' => $reviewsQuery->limit(8)->get(),
             'reviewCount' => $reviewCount,
             'reviewAverage' => $reviewAverage,
@@ -74,7 +80,7 @@ class BookingController extends Controller
         $package = $this->resolvePackage($slug);
         $validated = $request->validate([
             'date' => ['required', 'date', 'after_or_equal:today'],
-            'guest_count' => ['required', 'integer', 'min:1', 'max:12'],
+            'guest_count' => ['required', 'integer', 'min:1', 'max:'.$this->maxGuestCount()],
         ]);
 
         return response()->json([
@@ -89,6 +95,7 @@ class BookingController extends Controller
     public function store(StoreGuestReservationRequest $request, string $slug): RedirectResponse
     {
         $package = $this->resolvePackage($slug);
+        $profile = CafeProfile::query()->first();
         $user = $request->user();
         $validated = $request->validated();
 
@@ -103,6 +110,25 @@ class BookingController extends Controller
             'phone_number' => $validated['customer_phone'],
         ])->save();
 
+        $paymentPlan = GuestPaymentPlan::tryFrom((string) ($validated['payment_plan'] ?? ''));
+        $paymentPayload = [
+            'method' => $validated['payment_method'],
+        ];
+
+        if ($paymentPlan instanceof GuestPaymentPlan) {
+            $paymentPayload = [
+                ...$paymentPayload,
+                'type' => $paymentPlan->paymentType()->value,
+                'amount' => $paymentPlan->amount(
+                    (int) ($package['price_amount'] ?? 0),
+                    (float) ($profile?->down_payment_amount ?? 0),
+                ),
+                'notes' => 'Skema pembayaran tamu: '.$paymentPlan->label(),
+            ];
+        } else {
+            $paymentPayload['type'] = PaymentType::DownPayment->value;
+        }
+
         try {
             $result = $this->reservationService->createReservation([
                 'user_id' => $user->id,
@@ -114,10 +140,7 @@ class BookingController extends Controller
                 'start_time' => $validated['start_time'],
                 'guest_count' => (int) $validated['guest_count'],
                 'notes' => $this->buildReservationNotes($package['name'], $validated['notes'] ?? null),
-                'payment' => [
-                    'type' => PaymentType::DownPayment->value,
-                    'method' => $validated['payment_method'],
-                ],
+                'payment' => $paymentPayload,
             ]);
         } catch (RuntimeException $exception) {
             throw ValidationException::withMessages([
@@ -264,5 +287,10 @@ class BookingController extends Controller
         }
 
         return 'Paket reservasi: '.$packageName.PHP_EOL.PHP_EOL.'Catatan pelanggan: '.$trimmedNotes;
+    }
+
+    protected function maxGuestCount(): int
+    {
+        return max(1, (int) CafeTable::query()->where('is_active', true)->max('capacity'));
     }
 }

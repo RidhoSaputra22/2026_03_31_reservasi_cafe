@@ -3,18 +3,24 @@
 @endphp
 
 <x-layouts.app>
-    <div>
+    <div x-data="bookingReservationForm({
+        availabilityUrl: @js(route('booking.availability', ['slug' => $package['slug']])),
+        initialDate: @js($selectedDate),
+        initialTime: @js($selectedTime),
+        initialGuestCount: @js($guestCount),
+        initialSlots: @js($availability['slots']),
+        initialMessage: @js($availability['message']),
+        today: @js(now()->toDateString()),
+        maxGuestCount: @js($maxGuestCount),
+    })">
         @include('guest.components.site-navbar')
 
         <div class="flex min-h-screen flex-col gap-10 p-6 md:p-12 xl:flex-row">
-
             <div class="space-y-14 xl:flex-[2]">
-
-                <div class="relative rounded-2xl overflow-hidden ">
-                    <img src="{{ asset($package['image']) }}"
-                        class="h-[28rem] w-full object-cover md:h-screen">
+                <div class="relative overflow-hidden rounded-2xl">
+                    <img src="{{ asset($package['image']) }}" class="h-[28rem] w-full object-cover md:h-screen">
                     <span class="absolute inset-0 h-full w-full bg-linear-to-tr from-black to-transparent"></span>
-                    <div class="absolute bottom-6 left-6 text-white space-y-5">
+                    <div class="absolute bottom-6 left-6 space-y-5 text-white">
                         <div class="space-y-5">
                             <h1 class="text-5xl font-semibold">{{ $package['name'] }}</h1>
                             <h1 class="text-4xl font-semibold">{{ $package['price'] }}</h1>
@@ -22,7 +28,6 @@
                         </div>
                         <div class="flex items-center gap-2">
                             @component('components.icon.clock')
-
                             @endcomponent
                             <p class="text-md font-light">{{ $package['duration'] }}</p>
                         </div>
@@ -37,7 +42,7 @@
                             @endif
                         </div>
                         <div>
-                            <div class="space-y-2  ">
+                            <div class="space-y-2">
                                 <h2 class="text-lg font-semibold">Fasilitas Reservasi</h2>
                                 <div class="pl-5 [&_ul]:list-disc [&_ol]:list-decimal [&_li]:list-item">
                                     <ul class="space-y-2">
@@ -46,13 +51,12 @@
                                         @endforeach
                                     </ul>
                                 </div>
-
                             </div>
                         </div>
-
                     </div>
                 </div>
-                <div class="space-y-2  ">
+
+                <div class="space-y-2">
                     <h2 class="text-lg font-semibold">Catatan Reservasi</h2>
                     <div class="pl-5 [&_ul]:list-disc [&_ol]:list-decimal [&_li]:list-item">
                         <ul class="space-y-2">
@@ -61,24 +65,22 @@
                             @endforeach
                         </ul>
                     </div>
-
                 </div>
+
                 <div class="min-h-screen">
                     @include('guest.booking.booking-review')
-
                 </div>
-
             </div>
-            <div class="flex-1 ">
+
+            <div class="flex-1">
                 <div class="sticky top-20">
                     @include('guest.booking.booking-form')
                 </div>
             </div>
-
-
         </div>
 
-        @include('guest.components.site-footer')
+        @include('guest.booking.components.booking-calendar-modal')
 
+        @include('guest.components.site-footer')
     </div>
 </x-layouts.app>

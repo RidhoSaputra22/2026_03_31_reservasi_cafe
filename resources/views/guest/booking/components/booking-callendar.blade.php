@@ -1,42 +1,44 @@
 <div class="space-y-4">
     <div class="grid gap-4 md:grid-cols-2">
         <div class="space-y-2">
-            <label class="text-sm font-medium text-primary">Tanggal Kunjungan</label>
-            <input type="date" name="reservation_date" x-model="selectedDate" @change="loadAvailability"
-                min="{{ now()->toDateString() }}"
-                class="w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-700" required>
+            <label class="text-sm font-medium text-primary">Pilih Tanggal & Waktu Reservasi</label>
+            <button type="button" @click="openPicker()"
+                class="flex w-full items-center justify-between rounded-xl border border-dashed border-gray-300 px-4 py-4 text-left transition hover:border-primary hover:bg-primary/5">
+                <div class="min-w-0">
+                    <span class="block text-xs font-semibold uppercase tracking-[0.2em] text-primary/60">Klik untuk memilih</span>
+                    <span class="mt-2 block truncate text-sm font-semibold text-gray-700"
+                        x-text="selectedDateLabel || 'Pilih tanggal reservasi'"></span>
+                    <span class="mt-1 block text-xs text-gray-500"
+                        x-text="selectedTime ? selectedSlotLabel() : 'Pilih tanggal terlebih dahulu lalu ambil slot aktif.'"></span>
+                </div>
+
+                <span class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-primary/20 text-primary">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor" stroke-width="1.8">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M8.25 7.5V6a3.75 3.75 0 1 1 7.5 0v1.5m-9 0h10.5A2.25 2.25 0 0 1 19.5 9.75v7.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 17.25v-7.5A2.25 2.25 0 0 1 6.75 7.5Z" />
+                    </svg>
+                </span>
+            </button>
         </div>
 
         <div class="space-y-2">
             <label class="text-sm font-medium text-primary">Jumlah Tamu</label>
-            <input type="number" name="guest_count" min="1" max="12" x-model.number="guestCount"
-                @input.debounce.350ms="loadAvailability"
+            <input type="number" name="guest_count" min="1" max="{{ $maxGuestCount }}" x-model.number="guestCount"
                 class="w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-700" required>
+            <p class="text-xs font-light text-gray-500">
+                Maksimal <span class="font-semibold text-primary">{{ $maxGuestCount }} tamu</span> mengikuti kapasitas meja aktif.
+            </p>
         </div>
     </div>
 
+    <input type="hidden" name="reservation_date" :value="selectedDate">
     <input type="hidden" name="start_time" :value="selectedTime">
 
     <div class="rounded-md border border-gray-100 bg-gray-50 p-4 text-sm font-light text-gray-600">
-        <p class="font-semibold text-primary" x-text="selectedDateLabel"></p>
-        <p class="mt-1" x-show="message" x-text="message"></p>
-        <p class="mt-1" x-show="!message">Pilih salah satu slot yang masih tersedia untuk melanjutkan reservasi.</p>
-    </div>
-
-    <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        <template x-for="slot in slots" :key="slot.time">
-            <button type="button" @click="selectTime(slot.time)" :disabled="!slot.available"
-                class="rounded-md border px-4 py-4 text-left transition cursor-pointer"
-                :class="slot.available
-                    ? (selectedTime === slot.time
-                        ? 'border-primary bg-primary text-white'
-                        : 'border-gray-200 hover:border-primary hover:bg-primary/5')
-                    : 'cursor-not-allowed border-gray-100 bg-gray-100 text-gray-400'">
-                <span class="block text-sm font-semibold" x-text="slot.label"></span>
-                <span class="mt-1 block text-xs" x-text="slot.name"></span>
-                <span class="mt-2 block text-xs" x-text="slot.available ? slot.available_label : 'Slot penuh'"></span>
-            </button>
-        </template>
+        <p class="font-semibold text-primary" x-text="selectedDateLabel || 'Pilih tanggal reservasi'"></p>
+        <p class="mt-1" x-show="committedMessage" x-text="committedMessage"></p>
+        <p class="mt-1" x-show="!committedMessage">Pilih slot yang masih tersedia melalui kalender untuk melanjutkan reservasi.</p>
     </div>
 
     <div class="grid gap-3 text-sm font-light text-gray-600 md:grid-cols-2">
@@ -49,96 +51,3 @@
         </div>
     </div>
 </div>
-
-@push('scripts')
-    <script>
-        if (!window.bookingReservationForm) {
-            window.bookingReservationForm = function bookingReservationForm(config) {
-                return {
-                    availabilityUrl: config.availabilityUrl,
-                    selectedDate: config.initialDate,
-                    selectedTime: config.initialTime,
-                    selectedDateLabel: '',
-                    guestCount: Number(config.initialGuestCount || 2),
-                    slots: Array.isArray(config.initialSlots) ? config.initialSlots : [],
-                    message: config.initialMessage || null,
-                    loading: false,
-
-                    init() {
-                        this.syncDateLabel();
-
-                        if (!this.slots.length) {
-                            this.loadAvailability();
-                        }
-                    },
-
-                    syncDateLabel() {
-                        if (!this.selectedDate) {
-                            this.selectedDateLabel = 'Pilih tanggal reservasi';
-                            return;
-                        }
-
-                        const date = new Date(`${this.selectedDate}T00:00:00`);
-
-                        if (Number.isNaN(date.getTime())) {
-                            this.selectedDateLabel = this.selectedDate;
-                            return;
-                        }
-
-                        this.selectedDateLabel = new Intl.DateTimeFormat('id-ID', {
-                            weekday: 'long',
-                            day: '2-digit',
-                            month: 'long',
-                            year: 'numeric',
-                        }).format(date);
-                    },
-
-                    selectTime(time) {
-                        this.selectedTime = time;
-                    },
-
-                    async loadAvailability() {
-                        if (!this.selectedDate || !this.guestCount) {
-                            return;
-                        }
-
-                        this.loading = true;
-                        this.syncDateLabel();
-
-                        const currentTime = this.selectedTime;
-
-                        try {
-                            const url = new URL(this.availabilityUrl, window.location.origin);
-                            url.searchParams.set('date', this.selectedDate);
-                            url.searchParams.set('guest_count', this.guestCount);
-
-                            const response = await fetch(url, {
-                                headers: {
-                                    Accept: 'application/json',
-                                    'X-Requested-With': 'XMLHttpRequest',
-                                },
-                            });
-
-                            const data = await response.json();
-
-                            this.slots = Array.isArray(data.slots) ? data.slots : [];
-                            this.message = data.message || null;
-                            this.selectedDate = data.date || this.selectedDate;
-                            this.syncDateLabel();
-
-                            const stillAvailable = this.slots.find((slot) => slot.time === currentTime && slot.available);
-                            const firstAvailable = this.slots.find((slot) => slot.available);
-
-                            this.selectedTime = stillAvailable ? stillAvailable.time : (firstAvailable ? firstAvailable.time : '');
-                        } catch (error) {
-                            this.message = 'Gagal memuat ketersediaan slot. Coba lagi beberapa saat lagi.';
-                            this.selectedTime = '';
-                        } finally {
-                            this.loading = false;
-                        }
-                    },
-                };
-            };
-        }
-    </script>
-@endpush
