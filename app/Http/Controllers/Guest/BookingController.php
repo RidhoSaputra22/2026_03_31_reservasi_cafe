@@ -40,15 +40,22 @@ class BookingController extends Controller
         $package = $this->resolvePackage($slug);
         $profile = CafeProfile::query()->first();
         $maxGuestCount = $this->maxGuestCount();
+        $selectedDurationHours = $this->normalizeDurationHours(old('duration_hours', $request->integer('duration_hours', 1)));
+        $guestCount = max(1, min($maxGuestCount, (int) old('guest_count', $request->integer('guest_count', 2))));
 
         if ($slug !== $package['slug']) {
             return redirect()->route('booking.show', ['slug' => $package['slug']]);
         }
 
-        $guestCount = max(1, min($maxGuestCount, (int) old('guest_count', $request->integer('guest_count', 2))));
-        $selectedDate = old('reservation_date', $request->string('date')->toString()) ?: $this->nextAvailableDate($guestCount);
-        $availability = $this->availabilityPayload($selectedDate, $guestCount);
-        $selectedTime = old('start_time', $this->firstAvailableTime($availability['slots']));
+        $defaultSchedule = $this->nextAvailableSchedule($guestCount, $selectedDurationHours);
+        $selectedDate = old('reservation_date', $request->string('date')->toString())
+            ?: ($defaultSchedule['date'] ?? now()->toDateString());
+        $selectedTime = $this->normalizeStartTimeInput(
+            old('start_time', $request->string('time')->toString())
+                ?: ($defaultSchedule['time'] ?? null),
+        );
+        $availability = $this->availabilityPayload($selectedDate, $selectedTime, $guestCount, $selectedDurationHours);
+        $estimatedPrice = $this->packageCatalog->calculatePrice($package, $selectedDurationHours);
         $downPaymentAmount = (float) ($profile?->down_payment_amount ?? 0);
         $reviewsQuery = GuestReview::query()
             ->where('package_slug', $package['slug'])
@@ -64,6 +71,10 @@ class BookingController extends Controller
             'package' => $package,
             'selectedDate' => $selectedDate,
             'selectedTime' => $selectedTime,
+            'selectedDurationHours' => $selectedDurationHours,
+            'durationOptions' => $this->durationOptions(),
+            'estimatedPrice' => $estimatedPrice,
+            'estimatedPriceLabel' => $this->packageCatalog->formatMoney($estimatedPrice),
             'guestCount' => $guestCount,
             'maxGuestCount' => $maxGuestCount,
             'availability' => $availability,
@@ -80,14 +91,24 @@ class BookingController extends Controller
         $package = $this->resolvePackage($slug);
         $validated = $request->validate([
             'date' => ['required', 'date', 'after_or_equal:today'],
+            'start_time' => ['required', 'date_format:H:i'],
             'guest_count' => ['required', 'integer', 'min:1', 'max:'.$this->maxGuestCount()],
+            'duration_hours' => ['required', 'integer', 'min:1', 'max:'.$this->maxDurationHours()],
         ]);
+
+        $durationHours = (int) $validated['duration_hours'];
 
         return response()->json([
             'package_slug' => $package['slug'],
+            'estimated_price' => $this->packageCatalog->calculatePrice($package, $durationHours),
+            'estimated_price_label' => $this->packageCatalog->formatMoney(
+                $this->packageCatalog->calculatePrice($package, $durationHours),
+            ),
             ...$this->availabilityPayload(
                 $validated['date'],
+                $validated['start_time'],
                 (int) $validated['guest_count'],
+                $durationHours,
             ),
         ]);
     }
@@ -98,6 +119,8 @@ class BookingController extends Controller
         $profile = CafeProfile::query()->first();
         $user = $request->user();
         $validated = $request->validated();
+        $durationHours = (int) $validated['duration_hours'];
+        $totalPrice = $this->packageCatalog->calculatePrice($package, $durationHours);
 
         if (! $user?->isCustomer()) {
             throw ValidationException::withMessages([
@@ -120,7 +143,7 @@ class BookingController extends Controller
                 ...$paymentPayload,
                 'type' => $paymentPlan->paymentType()->value,
                 'amount' => $paymentPlan->amount(
-                    (int) ($package['price_amount'] ?? 0),
+                    $totalPrice,
                     (float) ($profile?->down_payment_amount ?? 0),
                 ),
                 'notes' => 'Skema pembayaran tamu: '.$paymentPlan->label(),
@@ -132,14 +155,22 @@ class BookingController extends Controller
         try {
             $result = $this->reservationService->createReservation([
                 'user_id' => $user->id,
+                'reservation_package_id' => $package['id'] ?? null,
                 'package_slug' => $package['slug'],
                 'package_name' => $package['name'],
                 'customer_name' => $validated['customer_name'],
                 'customer_phone' => $validated['customer_phone'],
                 'reservation_date' => $validated['reservation_date'],
                 'start_time' => $validated['start_time'],
+                'duration_hours' => $durationHours,
                 'guest_count' => (int) $validated['guest_count'],
-                'notes' => $this->buildReservationNotes($package['name'], $validated['notes'] ?? null),
+                'total_price' => $totalPrice,
+                'notes' => $this->buildReservationNotes(
+                    $package['name'],
+                    $durationHours,
+                    $totalPrice,
+                    $validated['notes'] ?? null,
+                ),
                 'payment' => $paymentPayload,
             ]);
         } catch (RuntimeException $exception) {
@@ -199,98 +230,213 @@ class BookingController extends Controller
         return $package;
     }
 
-    protected function nextAvailableDate(int $guestCount): string
+    /**
+     * @return array{date: string, time: string}|null
+     */
+    protected function nextAvailableSchedule(int $guestCount, int $durationHours): ?array
     {
         for ($offset = 0; $offset <= 21; $offset++) {
-            $date = now()->addDays($offset)->toDateString();
-            $availability = $this->availabilityPayload($date, $guestCount);
+            $date = now()->addDays($offset)->startOfDay();
+            $activeSlots = $this->availabilityService->activeSlotsForDate($date);
 
-            if ($availability['has_available_slot'] === true) {
-                return $date;
+            foreach ($activeSlots as $slot) {
+                $availability = $this->availabilityService->checkAvailability(
+                    $date,
+                    $slot->start_time,
+                    $guestCount,
+                    null,
+                    $durationHours,
+                );
+
+                if ($availability['is_available'] === true) {
+                    return [
+                        'date' => $date->toDateString(),
+                        'time' => Str::substr($slot->start_time, 0, 5),
+                    ];
+                }
             }
         }
 
-        return now()->toDateString();
+        return null;
     }
 
     /**
      * @return array{
      *     date: string,
      *     date_label: string,
+     *     start_time: string|null,
+     *     end_time: string|null,
+     *     duration_hours: int,
      *     guest_count: int,
-     *     has_available_slot: bool,
+     *     is_available: bool,
      *     message: string|null,
-     *     slots: array<int, array<string, mixed>>
+     *     available_tables_count: int,
+     *     available_label: string|null,
+     *     recommended_table: string|null,
+     *     operational_label: string|null,
+     *     active_windows: array<int, string>
      * }
      */
-    protected function availabilityPayload(string $date, int $guestCount): array
-    {
+    protected function availabilityPayload(
+        string $date,
+        ?string $startTime,
+        int $guestCount,
+        int $durationHours,
+    ): array {
         $selectedDate = Carbon::parse($date)->startOfDay();
-        $slots = ReservationSlot::query()
-            ->where('day_of_week', $selectedDate->dayOfWeek)
-            ->where('is_active', true)
-            ->orderBy('start_time')
-            ->get()
-            ->map(function (ReservationSlot $slot) use ($guestCount, $selectedDate): array {
-                $availability = $this->availabilityService->checkAvailability(
-                    $selectedDate,
-                    $slot->start_time,
-                    $guestCount,
-                );
-                $availableCount = $availability['available_tables']->count();
+        $resolvedStartTime = $this->normalizeStartTimeInput($startTime);
+        $activeWindows = $this->availabilityService
+            ->activeSlotsForDate($selectedDate)
+            ->map(
+                fn (ReservationSlot $slot): string => ($slot->name ? $slot->name.' · ' : '')
+                    .Str::substr($slot->start_time, 0, 5)
+                    .' - '
+                    .Str::substr((string) $slot->end_time, 0, 5),
+            )
+            ->values()
+            ->all();
 
-                return [
-                    'name' => $slot->name,
-                    'time' => Str::substr($slot->start_time, 0, 5),
-                    'end_time' => Str::substr((string) $slot->end_time, 0, 5),
-                    'label' => Str::substr($slot->start_time, 0, 5).' - '.Str::substr((string) $slot->end_time, 0, 5),
-                    'available' => $availability['is_available'],
-                    'available_tables_count' => $availableCount,
-                    'available_label' => $availability['is_available']
-                        ? $availableCount.' meja tersedia'
-                        : ($availability['reason'] ?? 'Tidak tersedia'),
-                    'recommended_table' => optional($availability['available_tables']->first())->name,
-                ];
-            })
-            ->values();
-        $hasAvailableSlot = $slots->contains(fn (array $slot): bool => $slot['available'] === true);
+        if ($resolvedStartTime === null) {
+            return [
+                'date' => $selectedDate->toDateString(),
+                'date_label' => $selectedDate->translatedFormat('l, d F Y'),
+                'start_time' => null,
+                'end_time' => null,
+                'duration_hours' => $durationHours,
+                'guest_count' => $guestCount,
+                'is_available' => false,
+                'message' => 'Isi jam mulai reservasi untuk mengecek ketersediaan meja.',
+                'available_tables_count' => 0,
+                'available_label' => null,
+                'recommended_table' => null,
+                'operational_label' => $activeWindows !== []
+                    ? 'Rentang aktif: '.implode(', ', $activeWindows)
+                    : 'Belum ada rentang jam reservasi aktif pada hari ini.',
+                'active_windows' => $activeWindows,
+            ];
+        }
+
+        $availability = $this->availabilityService->checkAvailability(
+            $selectedDate,
+            $resolvedStartTime,
+            $guestCount,
+            null,
+            $durationHours,
+        );
+        $availableCount = $availability['available_tables']->count();
+        $slot = $availability['slot'];
 
         return [
             'date' => $selectedDate->toDateString(),
             'date_label' => $selectedDate->translatedFormat('l, d F Y'),
+            'start_time' => Str::substr($availability['start_time'], 0, 5),
+            'end_time' => $availability['end_time'] !== null
+                ? Str::substr((string) $availability['end_time'], 0, 5)
+                : null,
+            'duration_hours' => $durationHours,
             'guest_count' => $guestCount,
-            'has_available_slot' => $hasAvailableSlot,
-            'message' => $hasAvailableSlot
+            'is_available' => $availability['is_available'],
+            'message' => $availability['is_available']
                 ? null
-                : 'Belum ada slot tersedia untuk tanggal dan jumlah tamu tersebut.',
-            'slots' => $slots->all(),
+                : ($availability['reason'] ?? 'Jadwal yang dipilih belum tersedia.'),
+            'available_tables_count' => $availableCount,
+            'available_label' => $availability['is_available']
+                ? $availableCount.' meja tersedia'
+                : ($availability['reason'] ?? 'Tidak tersedia'),
+            'recommended_table' => optional($availability['available_tables']->first())->name,
+            'operational_label' => $slot instanceof ReservationSlot
+                ? 'Masuk rentang aktif: '
+                    .($slot->name ? $slot->name.' · ' : '')
+                    .Str::substr($slot->start_time, 0, 5)
+                    .' - '
+                    .Str::substr((string) $slot->end_time, 0, 5)
+                : ($activeWindows !== []
+                    ? 'Rentang aktif: '.implode(', ', $activeWindows)
+                    : 'Belum ada rentang jam reservasi aktif pada hari ini.'),
+            'active_windows' => $activeWindows,
         ];
     }
 
-    /**
-     * @param  array<int, array<string, mixed>>  $slots
-     */
-    protected function firstAvailableTime(array $slots): ?string
-    {
-        $firstSlot = collect($slots)
-            ->first(fn (array $slot): bool => $slot['available'] === true);
-
-        return is_array($firstSlot) ? ($firstSlot['time'] ?? null) : null;
-    }
-
-    protected function buildReservationNotes(string $packageName, ?string $notes): string
-    {
+    protected function buildReservationNotes(
+        string $packageName,
+        int $durationHours,
+        int $totalPrice,
+        ?string $notes,
+    ): string {
+        $lines = [
+            'Paket reservasi: '.$packageName,
+            'Durasi: '.$this->durationLabel($durationHours),
+            'Estimasi total: '.$this->packageCatalog->formatMoney($totalPrice),
+        ];
         $trimmedNotes = trim((string) $notes);
 
-        if ($trimmedNotes === '') {
-            return 'Paket reservasi: '.$packageName;
+        if ($trimmedNotes !== '') {
+            $lines[] = 'Catatan pelanggan: '.$trimmedNotes;
         }
 
-        return 'Paket reservasi: '.$packageName.PHP_EOL.PHP_EOL.'Catatan pelanggan: '.$trimmedNotes;
+        return implode(PHP_EOL.PHP_EOL, $lines);
     }
 
     protected function maxGuestCount(): int
     {
         return max(1, (int) CafeTable::query()->where('is_active', true)->max('capacity'));
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    protected function durationOptions(): array
+    {
+        return range(1, $this->maxDurationHours());
+    }
+
+    protected function maxDurationHours(): int
+    {
+        $maxDuration = ReservationSlot::query()
+            ->where('is_active', true)
+            ->get()
+            ->map(fn (ReservationSlot $slot): int => $this->maxDurationHoursForSlot($slot))
+            ->max();
+
+        return max(1, (int) ($maxDuration ?? 1));
+    }
+
+    protected function maxDurationHoursForSlot(ReservationSlot $slot): int
+    {
+        $minutes = Carbon::parse($slot->start_time)
+            ->diffInMinutes(Carbon::parse((string) $slot->end_time), false);
+
+        if ($minutes < 60) {
+            return 0;
+        }
+
+        return (int) floor($minutes / 60);
+    }
+
+    protected function normalizeDurationHours(mixed $durationHours): int
+    {
+        return max(1, min($this->maxDurationHours(), (int) $durationHours));
+    }
+
+    protected function normalizeStartTimeInput(?string $startTime): ?string
+    {
+        $value = trim((string) $startTime);
+
+        if ($value === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value)->format('H:i');
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    protected function durationLabel(int $durationHours): string
+    {
+        return $durationHours === 1
+            ? '1 jam'
+            : $durationHours.' jam';
     }
 }

@@ -17,6 +17,7 @@ class Reservation extends Model
         'user_id',
         'cafe_table_id',
         'reservation_slot_id',
+        'reservation_package_id',
         'package_slug',
         'package_name',
         'customer_name',
@@ -24,9 +25,11 @@ class Reservation extends Model
         'reservation_date',
         'start_time',
         'end_time',
+        'duration_hours',
         'guest_count',
         'notes',
         'amount_due',
+        'total_price',
         'status',
         'confirmed_at',
         'checked_in_at',
@@ -42,8 +45,10 @@ class Reservation extends Model
     {
         return [
             'reservation_date' => 'date',
+            'duration_hours' => 'int',
             'guest_count' => 'int',
             'amount_due' => 'decimal:2',
+            'total_price' => 'decimal:2',
             'status' => ReservationStatus::class,
             'confirmed_at' => 'datetime',
             'checked_in_at' => 'datetime',
@@ -65,6 +70,11 @@ class Reservation extends Model
     public function reservationSlot(): BelongsTo
     {
         return $this->belongsTo(ReservationSlot::class);
+    }
+
+    public function reservationPackage(): BelongsTo
+    {
+        return $this->belongsTo(ReservationPackage::class);
     }
 
     public function confirmedBy(): BelongsTo

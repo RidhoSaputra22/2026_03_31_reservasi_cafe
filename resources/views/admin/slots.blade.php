@@ -1,32 +1,33 @@
-@extends('admin.layouts.app', ['title' => 'Panel Slot Reservasi', 'breadcrumbs' => [['label' => 'Slot Reservasi']]])
+@extends('admin.layouts.app', ['title' => 'Panel Rentang Jam Reservasi', 'breadcrumbs' => [['label' => 'Rentang Jam Reservasi']]])
 
 @section('header')
-    <x-layouts.page-header title="Panel Slot Reservasi" description="Atur jam operasional reservasi per hari agar assignment meja tetap rapi.">
+    <x-layouts.page-header title="Panel Rentang Jam Reservasi" description="Atur rentang jam operasional per hari. User tetap memilih jam mulai sendiri selama masih berada di dalam rentang aktif.">
         <x-slot:actions>
-            <x-ui.button href="#form-slot" type="primary" size="sm" :isSubmit="false">Tambah Slot</x-ui.button>
+            <x-ui.button href="#form-slot" type="primary" size="sm" :isSubmit="false">Tambah Rentang</x-ui.button>
         </x-slot:actions>
     </x-layouts.page-header>
 @endsection
 
 @section('content')
     <div class="grid gap-6 xl:grid-cols-[.85fr_1.15fr]">
-        <x-ui.card id="form-slot" title="Tambah Slot Baru">
+        <x-ui.card id="form-slot" title="Tambah Rentang Jam Baru">
             <form method="POST" action="{{ route('admin.slots.store') }}" class="space-y-4">
                 @csrf
-                <x-ui.input name="name" label="Nama Slot" placeholder="Brunch, Lunch, Dinner" required />
+                <x-ui.input name="name" label="Label Rentang" placeholder="Pagi Santai, Lunch, Sore" required
+                    helpText="Label ini hanya membantu admin mengenali rentang aktif, bukan pilihan slot tetap di sisi tamu." />
                 <x-ui.select name="day_of_week" label="Hari" :options="$dayOptions" placeholder="Pilih hari" required searchable />
                 <div class="grid gap-4 sm:grid-cols-2">
                     <x-ui.input name="start_time" type="time" label="Mulai" required />
                     <x-ui.input name="end_time" type="time" label="Selesai" required />
                 </div>
-                <x-ui.checkbox name="is_active" :checked="true" singleLabel="Slot aktif untuk reservasi" />
+                <x-ui.checkbox name="is_active" :checked="true" singleLabel="Rentang aktif untuk reservasi" />
                 <div class="flex justify-end">
-                    <x-ui.button type="primary">Simpan Slot</x-ui.button>
+                    <x-ui.button type="primary">Simpan Rentang</x-ui.button>
                 </div>
             </form>
         </x-ui.card>
 
-        <x-ui.card title="Preview Slot Mingguan">
+        <x-ui.card title="Preview Rentang Mingguan">
             <div class="grid gap-3 sm:grid-cols-2">
                 @foreach ($slots->getCollection()->groupBy('day_of_week') as $day => $daySlots)
                     <div class="rounded-box border border-base-200 p-4">
@@ -46,7 +47,7 @@
 
     <x-ui.card class="mt-6">
         <x-ui.data-table
-            title="Daftar Slot"
+            title="Daftar Rentang Jam"
             :data="$slots"
             :only="['name', 'day_of_week', 'start_time', 'end_time', 'is_active']"
             :labels="['day_of_week' => 'Hari', 'start_time' => 'Mulai', 'end_time' => 'Selesai', 'is_active' => 'Aktif']"

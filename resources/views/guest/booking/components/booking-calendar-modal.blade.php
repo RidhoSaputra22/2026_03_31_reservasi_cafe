@@ -8,7 +8,7 @@
                     <div class="space-y-2">
                         <h3 class="text-2xl font-semibold text-gray-900">Pilih Tanggal & Waktu Reservasi</h3>
                         <p class="text-sm font-light leading-6 text-gray-600">
-                            Atur kunjunganmu dengan memilih tanggal yang nyaman, lalu ambil slot aktif yang masih tersedia.
+                            Pilih tanggal yang nyaman, lalu lihat slot yang cocok dengan durasi reservasi yang kamu pilih.
                         </p>
                     </div>
 
@@ -49,6 +49,9 @@
                             <p class="mt-1 text-sm font-light text-gray-600">
                                 Jumlah tamu: <span class="font-semibold text-primary" x-text="guestCount"></span>
                             </p>
+                            <p class="mt-1 text-sm font-light text-gray-600">
+                                Durasi: <span class="font-semibold text-primary" x-text="selectedDurationLabel()"></span>
+                            </p>
                         </div>
                     </div>
 
@@ -86,7 +89,7 @@
                             Pilih jam untuk <span x-text="pickerDateLabel()"></span>
                         </p>
                         <p class="text-sm font-light leading-6 text-gray-600"
-                            x-text="pickerMessage || 'Pilih salah satu slot aktif yang masih tersedia.'"></p>
+                            x-text="pickerMessage || 'Pilih salah satu slot aktif yang masih tersedia untuk durasi ini.'"></p>
                     </div>
 
                     <div x-show="loading" class="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-600">
@@ -103,8 +106,8 @@
                                         ? 'border-primary bg-primary text-white'
                                         : 'border-gray-200 hover:border-primary hover:bg-primary/5')">
                                 <span class="block text-sm font-semibold" x-text="slot.label"></span>
-                                <span class="mt-1 block text-xs" x-text="slot.name"></span>
-                                <span class="mt-2 block text-xs" x-text="slot.available ? slot.available_label : 'Slot penuh'"></span>
+                                <span class="mt-1 block text-xs" x-text="slotMetaLabel(slot)"></span>
+                                <span class="mt-2 block text-xs" x-text="slot.available ? slot.available_label : (slot.available_label || 'Slot penuh')"></span>
                             </button>
                         </template>
                     </div>

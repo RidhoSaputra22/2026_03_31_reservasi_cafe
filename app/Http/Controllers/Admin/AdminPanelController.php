@@ -14,6 +14,7 @@ use App\Models\CafeTable;
 use App\Models\MenuItem;
 use App\Models\Payment;
 use App\Models\Reservation;
+use App\Models\ReservationPackage;
 use App\Models\ReservationSlot;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -229,6 +230,75 @@ class AdminPanelController extends Controller
         return back()->with('success', 'Menu berhasil dihapus.');
     }
 
+    public function packages(Request $request): View
+    {
+        $query = ReservationPackage::query();
+        $this->applySearch($query, $request->string('search')->toString(), ['name', 'category', 'summary', 'slug']);
+        $query->when(
+            $request->filled('status'),
+            fn (Builder $builder) => $builder->where('is_active', $request->string('status')->toString() === 'active'),
+        );
+        $this->applySort($query, ['name', 'category', 'base_price', 'included_hours', 'extra_hour_price', 'sort_order'], 'sort_order');
+
+        $editingPackage = $request->filled('edit')
+            ? ReservationPackage::query()->find($request->integer('edit'))
+            : null;
+
+        return view('admin.packages', [
+            'packages' => $query->get(),
+            'editingPackage' => $editingPackage,
+            'categoryOptions' => ReservationPackage::query()
+                ->whereNotNull('category')
+                ->distinct()
+                ->orderBy('category')
+                ->pluck('category')
+                ->map(fn (string $category): array => ['value' => $category, 'label' => $category])
+                ->values()
+                ->all(),
+            'statusOptions' => [
+                ['value' => 'active', 'label' => 'Aktif'],
+                ['value' => 'inactive', 'label' => 'Nonaktif'],
+            ],
+            'activeCount' => ReservationPackage::query()->where('is_active', true)->count(),
+            'featuredCount' => ReservationPackage::query()->where('is_featured', true)->count(),
+        ]);
+    }
+
+    public function storePackage(Request $request): RedirectResponse
+    {
+        $validated = $this->validatePackage($request);
+
+        ReservationPackage::query()->create($validated);
+
+        return redirect()
+            ->route('admin.packages.index')
+            ->with('success', 'Paket reservasi baru berhasil ditambahkan.');
+    }
+
+    public function updatePackage(Request $request, ReservationPackage $reservationPackage): RedirectResponse
+    {
+        $validated = $this->validatePackage($request, $reservationPackage);
+
+        $reservationPackage->update($validated);
+
+        return redirect()
+            ->route('admin.packages.index')
+            ->with('success', 'Paket reservasi berhasil diperbarui.');
+    }
+
+    public function destroyPackage(ReservationPackage $reservationPackage): RedirectResponse
+    {
+        if ($reservationPackage->reservations()->exists()) {
+            $reservationPackage->update(['is_active' => false]);
+
+            return back()->with('warning', 'Paket sudah punya riwayat reservasi, jadi dinonaktifkan alih-alih dihapus.');
+        }
+
+        $reservationPackage->delete();
+
+        return back()->with('success', 'Paket reservasi berhasil dihapus.');
+    }
+
     public function tables(Request $request): View
     {
         $query = CafeTable::query();
@@ -325,7 +395,7 @@ class AdminPanelController extends Controller
             'is_active' => $request->boolean('is_active', true),
         ]);
 
-        return back()->with('success', 'Slot reservasi baru berhasil ditambahkan.');
+        return back()->with('success', 'Rentang jam reservasi baru berhasil ditambahkan.');
     }
 
     public function updateSlot(Request $request, ReservationSlot $reservationSlot): RedirectResponse
@@ -345,7 +415,7 @@ class AdminPanelController extends Controller
             'is_active' => $request->boolean('is_active'),
         ]);
 
-        return back()->with('success', 'Slot reservasi berhasil diperbarui.');
+        return back()->with('success', 'Rentang jam reservasi berhasil diperbarui.');
     }
 
     public function destroySlot(ReservationSlot $reservationSlot): RedirectResponse
@@ -353,12 +423,12 @@ class AdminPanelController extends Controller
         if ($reservationSlot->reservations()->exists()) {
             $reservationSlot->update(['is_active' => false]);
 
-            return back()->with('warning', 'Slot memiliki riwayat reservasi, jadi dinonaktifkan alih-alih dihapus.');
+            return back()->with('warning', 'Rentang jam memiliki riwayat reservasi, jadi dinonaktifkan alih-alih dihapus.');
         }
 
         $reservationSlot->delete();
 
-        return back()->with('success', 'Slot reservasi berhasil dihapus.');
+        return back()->with('success', 'Rentang jam reservasi berhasil dihapus.');
     }
 
     public function payments(Request $request): View
@@ -570,6 +640,20 @@ class AdminPanelController extends Controller
                 'url' => route('admin.tables.index', ['search' => $table->code]),
             ]);
 
+        $packages = ReservationPackage::query()
+            ->where('name', 'like', "%{$query}%")
+            ->orWhere('category', 'like', "%{$query}%")
+            ->orWhere('slug', 'like', "%{$query}%")
+            ->limit(5)
+            ->get()
+            ->map(fn (ReservationPackage $package): array => [
+                'title' => $package->name,
+                'subtitle' => ($package->category ?: 'Paket').' - Rp '.number_format((float) $package->base_price, 0, ',', '.'),
+                'category' => 'Paket Reservasi',
+                'icon' => 'store',
+                'url' => route('admin.packages.index', ['search' => $package->name]),
+            ]);
+
         $payments = Payment::query()
             ->where('payment_code', 'like', "%{$query}%")
             ->orWhere('transaction_reference', 'like', "%{$query}%")
@@ -587,10 +671,64 @@ class AdminPanelController extends Controller
             'results' => $reservations
                 ->concat($menu)
                 ->concat($tables)
+                ->concat($packages)
                 ->concat($payments)
                 ->take(12)
                 ->values(),
         ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function validatePackage(Request $request, ?ReservationPackage $reservationPackage = null): array
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'slug' => [
+                'nullable',
+                'string',
+                'max:255',
+                Rule::unique('reservation_packages', 'slug')->ignore($reservationPackage),
+            ],
+            'category' => ['required', 'string', 'max:255'],
+            'image_path' => ['nullable', 'string', 'max:255'],
+            'summary' => ['required', 'string', 'max:500'],
+            'description' => ['required', 'string', 'max:2000'],
+            'base_price' => ['required', 'numeric', 'min:0'],
+            'included_hours' => ['required', 'integer', 'min:1', 'max:24'],
+            'extra_hour_price' => ['required', 'numeric', 'min:0'],
+            'aliases_text' => ['nullable', 'string', 'max:1000'],
+            'facilities_text' => ['nullable', 'string', 'max:2000'],
+            'notes_text' => ['nullable', 'string', 'max:2000'],
+            'sort_order' => ['nullable', 'integer', 'min:0', 'max:9999'],
+            'is_featured' => ['nullable', 'boolean'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+
+        return [
+            'slug' => $this->resolvePackageSlug(
+                $validated['slug'] ?? null,
+                $validated['name'],
+                $reservationPackage,
+            ),
+            'name' => trim($validated['name']),
+            'category' => trim($validated['category']),
+            'image_path' => filled($validated['image_path'] ?? null)
+                ? trim((string) $validated['image_path'])
+                : null,
+            'summary' => trim($validated['summary']),
+            'description' => trim($validated['description']),
+            'base_price' => $validated['base_price'],
+            'included_hours' => (int) $validated['included_hours'],
+            'extra_hour_price' => $validated['extra_hour_price'],
+            'aliases' => $this->parsePackageList($validated['aliases_text'] ?? null),
+            'facilities' => $this->parsePackageList($validated['facilities_text'] ?? null),
+            'notes' => $this->parsePackageList($validated['notes_text'] ?? null),
+            'sort_order' => (int) ($validated['sort_order'] ?? 0),
+            'is_featured' => $request->boolean('is_featured'),
+            'is_active' => $request->boolean('is_active', true),
+        ];
     }
 
     protected function ensureProfile(): CafeProfile
@@ -743,8 +881,15 @@ class AdminPanelController extends Controller
                 'tone' => 'accent',
             ],
             [
+                'title' => 'Paket Reservasi',
+                'description' => 'Susun paket sendiri, harga dasar, jam termasuk, dan tarif tambah per jam.',
+                'href' => route('admin.packages.index'),
+                'icon' => 'store',
+                'tone' => 'secondary',
+            ],
+            [
                 'title' => 'Slot Reservasi',
-                'description' => 'Atur jam brunch, lunch, dinner, dan hari aktif reservasi.',
+                'description' => 'Atur rentang jam operasional tempat reservasi berjalan setiap hari.',
                 'href' => route('admin.slots.index'),
                 'icon' => 'clock',
                 'tone' => 'info',
@@ -764,5 +909,49 @@ class AdminPanelController extends Controller
                 'tone' => 'secondary',
             ],
         ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function parsePackageList(?string $value): array
+    {
+        return collect(preg_split('/[\r\n,]+/', (string) $value))
+            ->map(fn (string $item): string => trim($item))
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    protected function resolvePackageSlug(
+        ?string $requestedSlug,
+        string $name,
+        ?ReservationPackage $reservationPackage = null,
+    ): string {
+        $baseSlug = filled($requestedSlug)
+            ? Str::slug((string) $requestedSlug)
+            : ($reservationPackage?->slug ?: Str::slug($name));
+
+        if ($baseSlug === '') {
+            $baseSlug = 'paket-reservasi';
+        }
+
+        $slug = $baseSlug;
+        $counter = 2;
+
+        while (
+            ReservationPackage::query()
+                ->when(
+                    $reservationPackage instanceof ReservationPackage,
+                    fn (Builder $builder) => $builder->whereKeyNot($reservationPackage->id),
+                )
+                ->where('slug', $slug)
+                ->exists()
+        ) {
+            $slug = $baseSlug.'-'.$counter;
+            $counter++;
+        }
+
+        return $slug;
     }
 }

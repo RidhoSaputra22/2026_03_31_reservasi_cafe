@@ -7,6 +7,7 @@ use App\Enums\TableStatus;
 use App\Enums\UserRole;
 use App\Models\Payment;
 use App\Models\Reservation;
+use App\Models\ReservationPackage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -46,6 +47,10 @@ class CafeReservationDomainTest extends TestCase
         $this->assertTrue(
             Payment::query()->whereHas('reservation')->exists(),
             'Pembayaran harus terhubung ke reservasi.'
+        );
+        $this->assertTrue(
+            ReservationPackage::query()->exists(),
+            'Paket reservasi harus tersedia di katalog database.'
         );
     }
 }

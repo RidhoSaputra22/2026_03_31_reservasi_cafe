@@ -8,7 +8,7 @@
     <div class="space-y-5 rounded-md border border-gray-100 bg-white p-6 shadow-sm">
         <div class="space-y-3">
             <div class="rounded-md border border-gray-200 bg-gray-50 p-4 text-sm font-light text-gray-600">
-                Reservasi akan menggunakan slot aktif dari sistem admin dan meja akan dipilih otomatis sesuai jumlah tamu.
+                Tentukan sendiri tanggal, jam mulai, dan durasi kunjunganmu. Sistem akan menyesuaikan dengan rentang jam aktif admin dan menghitung total harga secara otomatis.
             </div>
 
             <div class="space-y-2">
@@ -83,10 +83,10 @@
                 </div>
 
                 <div>
-                    <button type="submit" :disabled="loading || !selectedTime"
+                    <button type="submit" :disabled="loading || !reservationDate || !startTime || !isAvailable()"
                         class="w-full rounded-md bg-primary px-4 py-3 font-semibold text-white transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-primary/50">
                         <span x-show="!loading">Kirim Permintaan Reservasi</span>
-                        <span x-show="loading" x-cloak>Memuat slot...</span>
+                        <span x-show="loading" x-cloak>Memeriksa jadwal...</span>
                     </button>
                 </div>
             </form>

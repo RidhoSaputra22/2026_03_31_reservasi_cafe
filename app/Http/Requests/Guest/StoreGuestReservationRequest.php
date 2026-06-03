@@ -27,6 +27,7 @@ class StoreGuestReservationRequest extends FormRequest
             'customer_phone' => ['required', 'string', 'max:30'],
             'reservation_date' => ['required', 'date', 'after_or_equal:today'],
             'start_time' => ['required', 'date_format:H:i'],
+            'duration_hours' => ['required', 'integer', 'min:1', 'max:12'],
             'guest_count' => ['required', 'integer', 'min:1', 'max:'.$maxGuestCount],
             'notes' => ['nullable', 'string', 'max:1000'],
             'payment_plan' => ['nullable', Rule::in(array_map(
@@ -50,6 +51,7 @@ class StoreGuestReservationRequest extends FormRequest
             'customer_phone' => 'nomor telepon',
             'reservation_date' => 'tanggal reservasi',
             'start_time' => 'jam reservasi',
+            'duration_hours' => 'durasi reservasi',
             'guest_count' => 'jumlah tamu',
             'payment_plan' => 'skema pembayaran',
             'payment_method' => 'metode pembayaran',

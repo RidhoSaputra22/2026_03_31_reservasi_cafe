@@ -1,7 +1,5 @@
 import Alpine from 'alpinejs';
 
-const BOOKING_WEEKDAYS = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
-
 function normalizeDate(value) {
     if (!value) {
         return '';
@@ -24,232 +22,131 @@ function normalizeDate(value) {
     return `${year}-${month}-${day}`;
 }
 
-function parseDate(value) {
-    const normalized = normalizeDate(value);
-
-    if (!normalized) {
-        return null;
-    }
-
-    const [year, month, day] = normalized.split('-').map(Number);
-
-    return new Date(year, month - 1, day);
-}
-
-function formatDateLabel(value, options = {}) {
-    const date = parseDate(value);
-
-    if (!date) {
+function normalizeTime(value) {
+    if (!value) {
         return '';
     }
 
-    return new Intl.DateTimeFormat('id-ID', {
-        weekday: 'long',
-        day: '2-digit',
-        month: 'long',
-        year: 'numeric',
-        ...options,
-    }).format(date);
+    const match = String(value).match(/^(\d{2}):(\d{2})(?::\d{2})?$/);
+
+    if (!match) {
+        return '';
+    }
+
+    return `${match[1]}:${match[2]}`;
 }
 
-function cloneSlots(slots = []) {
-    return Array.isArray(slots) ? slots.map((slot) => ({ ...slot })) : [];
+function addHoursToTime(value, hours) {
+    const normalized = normalizeTime(value);
+    const numericHours = Number(hours || 0);
+
+    if (!normalized || !Number.isFinite(numericHours)) {
+        return '';
+    }
+
+    const [baseHours, baseMinutes] = normalized.split(':').map(Number);
+    const totalMinutes = (baseHours * 60) + baseMinutes + (numericHours * 60);
+    const normalizedMinutes = ((totalMinutes % 1440) + 1440) % 1440;
+    const nextHours = `${Math.floor(normalizedMinutes / 60)}`.padStart(2, '0');
+    const nextMinutes = `${normalizedMinutes % 60}`.padStart(2, '0');
+
+    return `${nextHours}:${nextMinutes}`;
+}
+
+function durationLabel(value) {
+    const numericValue = Number(value || 0);
+
+    if (!Number.isFinite(numericValue) || numericValue <= 0) {
+        return '1 jam';
+    }
+
+    return numericValue === 1 ? '1 jam' : `${numericValue} jam`;
 }
 
 document.addEventListener('alpine:init', () => {
     Alpine.data('bookingReservationForm', (config = {}) => ({
         availabilityUrl: config.availabilityUrl || '',
         today: normalizeDate(config.today) || normalizeDate(new Date()),
-        weekdayLabels: BOOKING_WEEKDAYS,
-        guestCount: Number(config.initialGuestCount || 2),
         maxGuestCount: Number(config.maxGuestCount || 12),
-        selectedDate: normalizeDate(config.initialDate),
-        selectedTime: config.initialTime || '',
-        selectedDateLabel: '',
-        committedSlots: cloneSlots(config.initialSlots),
-        committedMessage: config.initialMessage || null,
-        pickerOpen: false,
-        pickerStep: 'calendar',
-        pickerDate: '',
-        pickerTime: '',
-        pickerSlots: [],
-        pickerMessage: null,
+        durationOptions: Array.isArray(config.durationOptions) ? config.durationOptions : [1],
+        reservationDate: normalizeDate(config.initialDate),
+        startTime: normalizeTime(config.initialTime),
+        durationHours: Number(config.initialDurationHours || 1),
+        guestCount: Number(config.initialGuestCount || 2),
+        availability: config.initialAvailability || {},
+        estimatedPrice: Number(config.initialEstimatedPrice || 0),
+        estimatedPriceLabel: config.initialEstimatedPriceLabel || '',
         loading: false,
-        visibleMonth: 0,
-        visibleYear: 0,
-        guestCountDebounceId: null,
+        refreshDebounceId: null,
 
         init() {
-            this.syncDateLabel();
-            this.syncCalendarReference(this.selectedDate || this.today);
+            this.durationOptions = this.durationOptions
+                .map((value) => Number(value))
+                .filter((value) => Number.isInteger(value) && value > 0);
 
-            if (!this.selectedTime) {
-                const firstAvailable = this.committedSlots.find((slot) => slot.available);
-                this.selectedTime = firstAvailable ? firstAvailable.time : '';
+            if (this.durationOptions.length === 0) {
+                this.durationOptions = [1];
             }
 
+            this.durationHours = this.normalizeDuration(this.durationHours);
+            this.guestCount = this.normalizeGuestCount(this.guestCount);
+
+            this.$watch('reservationDate', () => this.queueRefresh());
+            this.$watch('startTime', (value) => {
+                this.startTime = normalizeTime(value);
+                this.queueRefresh();
+            });
+            this.$watch('durationHours', (value) => {
+                this.durationHours = this.normalizeDuration(value);
+                this.queueRefresh();
+            });
             this.$watch('guestCount', (value) => {
-                const normalizedGuestCount = Math.max(1, Math.min(this.maxGuestCount, Number(value || 1)));
-                this.guestCount = normalizedGuestCount;
-
-                window.clearTimeout(this.guestCountDebounceId);
-                this.guestCountDebounceId = window.setTimeout(() => {
-                    const targetDate = this.pickerOpen ? (this.pickerDate || this.selectedDate || this.today) : (this.selectedDate || this.today);
-
-                    if (!targetDate) {
-                        return;
-                    }
-
-                    if (this.pickerOpen) {
-                        this.loadPickerAvailability(targetDate);
-                    } else {
-                        this.loadCommittedAvailability(targetDate);
-                    }
-                }, 350);
+                this.guestCount = this.normalizeGuestCount(value);
+                this.queueRefresh();
             });
         },
 
-        openPicker() {
-            this.pickerOpen = true;
-            this.pickerStep = 'calendar';
-            this.pickerDate = this.selectedDate || this.today;
-            this.pickerTime = this.selectedTime || '';
-            this.pickerSlots = cloneSlots(this.committedSlots);
-            this.pickerMessage = this.committedMessage;
-            this.syncCalendarReference(this.pickerDate || this.today);
-            document.body.classList.add('overflow-hidden');
+        normalizeDuration(value) {
+            const numericValue = Number(value || this.durationOptions[0]);
+
+            return this.durationOptions.includes(numericValue)
+                ? numericValue
+                : this.durationOptions[0];
         },
 
-        closePicker() {
-            this.pickerOpen = false;
-            this.pickerStep = 'calendar';
-            this.pickerDate = this.selectedDate || this.today;
-            this.pickerTime = this.selectedTime || '';
-            this.pickerSlots = [];
-            this.pickerMessage = null;
-            document.body.classList.remove('overflow-hidden');
+        normalizeGuestCount(value) {
+            return Math.max(1, Math.min(this.maxGuestCount, Number(value || 1)));
         },
 
-        syncDateLabel() {
-            this.selectedDateLabel = formatDateLabel(this.selectedDate);
+        queueRefresh() {
+            window.clearTimeout(this.refreshDebounceId);
+            this.refreshDebounceId = window.setTimeout(() => {
+                this.fetchAvailability();
+            }, 350);
         },
 
-        syncCalendarReference(referenceDate) {
-            const date = parseDate(referenceDate) || parseDate(this.today) || new Date();
-            this.visibleMonth = date.getMonth();
-            this.visibleYear = date.getFullYear();
-        },
+        async fetchAvailability() {
+            this.estimatedPrice = Number(this.estimatedPrice || 0);
 
-        calendarTitle() {
-            return new Intl.DateTimeFormat('id-ID', {
-                month: 'long',
-                year: 'numeric',
-            }).format(new Date(this.visibleYear, this.visibleMonth, 1));
-        },
-
-        calendarDays() {
-            const firstDayOfMonth = new Date(this.visibleYear, this.visibleMonth, 1);
-            const startOffset = (firstDayOfMonth.getDay() + 6) % 7;
-            const gridStart = new Date(this.visibleYear, this.visibleMonth, 1 - startOffset);
-
-            return Array.from({ length: 42 }, (_, index) => {
-                const date = new Date(gridStart);
-                date.setDate(gridStart.getDate() + index);
-
-                const normalizedDate = normalizeDate(date);
-
-                return {
-                    key: `${normalizedDate}-${index}`,
-                    date: normalizedDate,
-                    day: date.getDate(),
-                    month: date.getMonth(),
-                    year: date.getFullYear(),
-                    currentMonth: date.getMonth() === this.visibleMonth,
-                    isToday: normalizedDate === this.today,
-                    disabled: normalizedDate < this.today,
+            if (!this.reservationDate || !this.startTime || !this.durationHours || !this.guestCount) {
+                this.availability = {
+                    ...(this.availability || {}),
+                    message: 'Lengkapi tanggal, jam mulai, durasi, dan jumlah tamu untuk mengecek ketersediaan.',
+                    is_available: false,
+                    start_time: this.startTime || null,
+                    end_time: this.endTimePreview() || null,
                 };
-            });
-        },
 
-        calendarDayClass(day) {
-            return {
-                'booking-calendar__day--outside': !day.currentMonth,
-                'booking-calendar__day--disabled': day.disabled,
-                'booking-calendar__day--today': day.isToday,
-                'booking-calendar__day--selected': day.date === (this.pickerDate || this.selectedDate),
-            };
-        },
-
-        goToPreviousMonth() {
-            const previousMonth = new Date(this.visibleYear, this.visibleMonth - 1, 1);
-            this.visibleMonth = previousMonth.getMonth();
-            this.visibleYear = previousMonth.getFullYear();
-        },
-
-        goToNextMonth() {
-            const nextMonth = new Date(this.visibleYear, this.visibleMonth + 1, 1);
-            this.visibleMonth = nextMonth.getMonth();
-            this.visibleYear = nextMonth.getFullYear();
-        },
-
-        jumpToToday() {
-            this.syncCalendarReference(this.today);
-        },
-
-        async selectCalendarDay(day) {
-            if (day.disabled) {
                 return;
-            }
-
-            const loaded = await this.loadPickerAvailability(day.date);
-
-            if (loaded) {
-                this.pickerStep = 'slots';
-            }
-        },
-
-        async loadCommittedAvailability(date) {
-            const payload = await this.fetchAvailability(date, this.selectedTime);
-
-            if (!payload) {
-                return false;
-            }
-
-            this.selectedDate = payload.date;
-            this.selectedTime = payload.time;
-            this.committedSlots = payload.slots;
-            this.committedMessage = payload.message;
-            this.syncDateLabel();
-
-            return true;
-        },
-
-        async loadPickerAvailability(date) {
-            const payload = await this.fetchAvailability(date, this.pickerTime || this.selectedTime);
-
-            if (!payload) {
-                return false;
-            }
-
-            this.pickerDate = payload.date;
-            this.pickerTime = payload.time;
-            this.pickerSlots = payload.slots;
-            this.pickerMessage = payload.message;
-            this.syncCalendarReference(this.pickerDate);
-
-            return true;
-        },
-
-        async fetchAvailability(date, currentTime = '') {
-            if (!date || !this.guestCount) {
-                return null;
             }
 
             this.loading = true;
 
             try {
                 const url = new URL(this.availabilityUrl, window.location.origin);
-                url.searchParams.set('date', date);
+                url.searchParams.set('date', this.reservationDate);
+                url.searchParams.set('start_time', this.startTime);
+                url.searchParams.set('duration_hours', this.durationHours);
                 url.searchParams.set('guest_count', this.guestCount);
 
                 const response = await fetch(url, {
@@ -263,99 +160,76 @@ document.addEventListener('alpine:init', () => {
                     throw new Error(`Availability request failed with status ${response.status}`);
                 }
 
-                const data = await response.json();
-                const slots = Array.isArray(data.slots) ? data.slots : [];
-                const currentAvailable = slots.find((slot) => slot.time === currentTime && slot.available);
-                const firstAvailable = slots.find((slot) => slot.available);
-
-                return {
-                    date: normalizeDate(data.date || date),
-                    slots,
-                    message: data.message || null,
-                    time: currentAvailable ? currentAvailable.time : (firstAvailable ? firstAvailable.time : ''),
-                };
+                const payload = await response.json();
+                this.availability = payload;
+                this.estimatedPrice = Number(payload.estimated_price || 0);
+                this.estimatedPriceLabel = payload.estimated_price_label || this.estimatedPriceLabel;
+                this.startTime = normalizeTime(payload.start_time || this.startTime);
             } catch (error) {
-                const fallbackMessage = 'Gagal memuat ketersediaan slot. Coba lagi beberapa saat lagi.';
-
-                if (this.pickerOpen) {
-                    this.pickerMessage = fallbackMessage;
-                } else {
-                    this.committedMessage = fallbackMessage;
-                }
-
-                return null;
+                this.availability = {
+                    ...(this.availability || {}),
+                    message: 'Gagal memuat ketersediaan reservasi. Coba lagi beberapa saat lagi.',
+                    is_available: false,
+                };
             } finally {
                 this.loading = false;
             }
         },
 
-        selectPickerTime(time) {
-            const selectedSlot = this.pickerSlots.find((slot) => slot.time === time && slot.available);
+        isAvailable() {
+            return this.availability?.is_available === true;
+        },
 
-            if (!selectedSlot) {
-                return;
+        durationText() {
+            return durationLabel(this.durationHours);
+        },
+
+        endTimePreview() {
+            if (this.availability?.end_time) {
+                return normalizeTime(this.availability.end_time);
             }
 
-            this.pickerTime = selectedSlot.time;
+            return addHoursToTime(this.startTime, this.durationHours);
         },
 
-        timeCardClass(slot) {
-            if (!slot.available) {
-                return 'booking-time-card--disabled';
+        reservationTimeLabel() {
+            if (!this.startTime) {
+                return 'Belum dipilih';
             }
 
-            return slot.time === this.pickerTime ? 'booking-time-card--active' : 'booking-time-card--idle';
+            const endTime = this.endTimePreview();
+
+            return endTime
+                ? `${normalizeTime(this.startTime)} - ${endTime}`
+                : normalizeTime(this.startTime);
         },
 
-        applyPickerSelection() {
-            if (!this.pickerDate || !this.pickerTime) {
-                return;
+        availabilityToneClass() {
+            if (this.isAvailable()) {
+                return 'border-emerald-200 bg-emerald-50 text-emerald-700';
             }
 
-            this.selectedDate = this.pickerDate;
-            this.selectedTime = this.pickerTime;
-            this.committedSlots = cloneSlots(this.pickerSlots);
-            this.committedMessage = this.pickerMessage;
-            this.syncDateLabel();
-            this.closePicker();
+            return 'border-amber-200 bg-amber-50 text-amber-700';
         },
 
-        reservationSelectionLabel() {
-            if (!this.selectedDate) {
-                return 'Belum ada jadwal yang dipilih';
+        availabilityMessage() {
+            if (this.availability?.message) {
+                return this.availability.message;
             }
 
-            const slot = this.selectedSlot();
-
-            if (!slot) {
-                return this.selectedDateLabel || formatDateLabel(this.selectedDate);
+            if (this.isAvailable()) {
+                return this.availability?.available_label || 'Jadwal ini tersedia untuk dipesan.';
             }
 
-            return `${this.selectedDateLabel || formatDateLabel(this.selectedDate)} · ${slot.label}`;
+            return 'Pilih jadwal reservasi untuk mengecek ketersediaan.';
         },
 
-        selectedSlot() {
-            return this.committedSlots.find((slot) => slot.time === this.selectedTime) || null;
+        operationalLabel() {
+            return this.availability?.operational_label || 'Rentang operasional akan tampil setelah jadwal dipilih.';
         },
 
-        selectedSlotLabel() {
-            const slot = this.selectedSlot();
-
-            return slot ? `${slot.name} · ${slot.label}` : 'Belum dipilih';
-        },
-
-        selectionAvailabilityLabel() {
-            const slot = this.selectedSlot();
-
-            if (slot?.available_label) {
-                return slot.available_label;
-            }
-
-            return this.committedMessage || 'Pilih tanggal dan slot terlebih dahulu';
-        },
-
-        pickerDateLabel() {
-            return formatDateLabel(this.pickerDate || this.selectedDate);
+        priceSummary() {
+            return this.estimatedPriceLabel || 'Rp. 0';
         },
     }));
 });

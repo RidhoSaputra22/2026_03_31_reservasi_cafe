@@ -5,6 +5,7 @@ namespace Tests\Feature\Guest;
 use App\Enums\PaymentMethod;
 use App\Models\CafeProfile;
 use App\Models\CafeTable;
+use App\Models\ReservationPackage;
 use App\Models\ReservationSlot;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -76,18 +77,37 @@ class GuestReservationFlowTest extends TestCase
             'is_active' => true,
         ]);
 
+        $package = ReservationPackage::query()->create([
+            'slug' => 'paket-fleksibel-malam',
+            'aliases' => ['paket-malam'],
+            'name' => 'Paket Fleksibel Malam',
+            'category' => 'Custom Night',
+            'image_path' => 'assets/images/hero.jpg',
+            'summary' => 'Paket dengan tambahan harga per jam.',
+            'description' => 'Paket custom untuk menguji total harga berdasarkan durasi user.',
+            'base_price' => 100000,
+            'included_hours' => 1,
+            'extra_hour_price' => 20000,
+            'facilities' => ['Area indoor'],
+            'notes' => ['Konfirmasi ulang di H-1'],
+            'is_featured' => false,
+            'is_active' => true,
+            'sort_order' => 99,
+        ]);
+
         ReservationSlot::factory()->create([
             'day_of_week' => now()->addDay()->dayOfWeek,
             'start_time' => '10:00:00',
-            'end_time' => '12:00:00',
+            'end_time' => '14:00:00',
             'is_active' => true,
         ]);
 
-        $response = $this->actingAs($customer)->post(route('booking.store', ['slug' => 'coffee-date-corner']), [
+        $response = $this->actingAs($customer)->post(route('booking.store', ['slug' => $package->slug]), [
             'customer_name' => 'Pelanggan Booking',
             'customer_phone' => '081234567890',
             'reservation_date' => now()->addDay()->toDateString(),
-            'start_time' => '10:00',
+            'start_time' => '10:30',
+            'duration_hours' => 3,
             'guest_count' => 2,
             'payment_method' => PaymentMethod::Cash->value,
             'notes' => 'Butuh area nyaman',
@@ -97,12 +117,64 @@ class GuestReservationFlowTest extends TestCase
 
         $this->assertDatabaseHas('reservations', [
             'user_id' => $customer->id,
-            'package_slug' => 'coffee-date-corner',
-            'package_name' => 'Coffee Date Corner',
+            'reservation_package_id' => $package->id,
+            'package_slug' => 'paket-fleksibel-malam',
+            'package_name' => 'Paket Fleksibel Malam',
             'customer_name' => 'Pelanggan Booking',
+            'start_time' => '10:30:00',
+            'end_time' => '13:30:00',
+            'duration_hours' => 3,
+            'total_price' => 140000,
         ]);
 
         $this->assertDatabaseCount('payments', 1);
+    }
+
+    public function test_availability_endpoint_accepts_manual_start_time_and_returns_hourly_price_estimate(): void
+    {
+        CafeProfile::factory()->create();
+
+        ReservationPackage::query()->create([
+            'slug' => 'late-work-session',
+            'aliases' => ['late-work'],
+            'name' => 'Late Work Session',
+            'category' => 'Work Space',
+            'image_path' => 'assets/images/about.png',
+            'summary' => 'Paket kerja malam.',
+            'description' => 'Paket kerja dengan biaya tambahan per jam.',
+            'base_price' => 100000,
+            'included_hours' => 1,
+            'extra_hour_price' => 25000,
+            'facilities' => ['WiFi', 'Colokan'],
+            'notes' => ['Datang tepat waktu'],
+            'is_featured' => false,
+            'is_active' => true,
+            'sort_order' => 20,
+        ]);
+
+        CafeTable::factory()->create([
+            'capacity' => 4,
+            'is_active' => true,
+        ]);
+
+        ReservationSlot::factory()->create([
+            'day_of_week' => now()->addDay()->dayOfWeek,
+            'start_time' => '10:00:00',
+            'end_time' => '15:00:00',
+            'is_active' => true,
+        ]);
+
+        $this->getJson(route('booking.availability', ['slug' => 'late-work-session', 'date' => now()->addDay()->toDateString(), 'start_time' => '10:30', 'duration_hours' => 3, 'guest_count' => 2]))
+            ->assertOk()
+            ->assertJson([
+                'package_slug' => 'late-work-session',
+                'start_time' => '10:30',
+                'end_time' => '13:30',
+                'duration_hours' => 3,
+                'estimated_price' => 150000,
+                'estimated_price_label' => 'Rp. 150.000',
+                'is_available' => true,
+            ]);
     }
 
     public function test_guest_can_submit_review_for_booking_package(): void

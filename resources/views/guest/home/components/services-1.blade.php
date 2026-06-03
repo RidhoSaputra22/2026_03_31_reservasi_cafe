@@ -25,12 +25,7 @@
                         {{ $package['name'] }}
                     </h1>
                     <h1 class="mt-2 text-lg font-semibold">{{ $package['price'] }}</h1>
-                    <div class="flex items-center gap-2 text-primary">
-                        @component('components.icon.clock')
-                        @endcomponent
-
-                        <div>{{ $package['duration'] }}</div>
-                    </div>
+                    <p class="text-sm font-medium text-primary">{{ $package['pricing_summary'] ?? 'Durasi fleksibel, pilih saat reservasi.' }}</p>
                 </div>
             </a>
         @endforeach

@@ -49,6 +49,11 @@ Route::prefix('admin')->middleware('admin.access')->controller(AdminPanelControl
     Route::patch('/menu/{menuItem}', 'updateMenu')->name('admin.menu.update');
     Route::delete('/menu/{menuItem}', 'destroyMenu')->name('admin.menu.destroy');
 
+    Route::get('/paket-reservasi', 'packages')->name('admin.packages.index');
+    Route::post('/paket-reservasi', 'storePackage')->name('admin.packages.store');
+    Route::patch('/paket-reservasi/{reservationPackage}', 'updatePackage')->name('admin.packages.update');
+    Route::delete('/paket-reservasi/{reservationPackage}', 'destroyPackage')->name('admin.packages.destroy');
+
     Route::get('/meja', 'tables')->name('admin.tables.index');
     Route::post('/meja', 'storeTable')->name('admin.tables.store');
     Route::patch('/meja/{cafeTable}', 'updateTable')->name('admin.tables.update');

@@ -1,12 +1,10 @@
 @php
     $packages = collect($packages ?? config('packages'))->values()->all();
     $categories = $categories ?? collect($packages)->pluck('category')->unique()->prepend('Semua Kategori')->values()->all();
-    $durations = $durations ?? collect($packages)->pluck('duration')->unique()->prepend('Semua Durasi')->values()->all();
     $resultsAnchor = 'package-results';
     $filters = $filters ?? [
         'q' => '',
         'category' => '',
-        'duration' => '',
         'price' => '',
         'sort' => 'latest',
     ];
@@ -35,18 +33,6 @@
                             <option value="{{ $category === 'Semua Kategori' ? '' : $category }}"
                                 @selected($filters['category'] === ($category === 'Semua Kategori' ? '' : $category))>
                                 {{ $category }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <div class="space-y-2">
-                    <label class="text-sm font-medium text-primary">Durasi</label>
-                    <select name="duration" class="w-full rounded-xl border border-gray-200 px-4 py-3">
-                        @foreach ($durations as $duration)
-                            <option value="{{ $duration === 'Semua Durasi' ? '' : $duration }}"
-                                @selected($filters['duration'] === ($duration === 'Semua Durasi' ? '' : $duration))>
-                                {{ $duration }}
                             </option>
                         @endforeach
                     </select>
@@ -87,7 +73,7 @@
             <div class="flex items-center justify-between text-sm font-light text-gray-500">
                 <p>Menampilkan {{ count($packages) }} paket reservasi.</p>
                 <p>
-                    @if ($filters['q'] || $filters['category'] || $filters['duration'] || $filters['price'])
+                    @if ($filters['q'] || $filters['category'] || $filters['price'])
                         Filter aktif diterapkan.
                     @else
                         Jelajahi semua pilihan reservasi.
@@ -117,12 +103,7 @@
                             </h1>
                             <p class="text-sm font-light text-gray-500">{{ $package['summary'] }}</p>
                             <h1 class="mt-2 text-lg font-semibold">{{ $package['price'] }}</h1>
-                            <div class="flex items-center gap-2 text-primary">
-                                @component('components.icon.clock')
-                                @endcomponent
-
-                                <div>{{ $package['duration'] }}</div>
-                            </div>
+                            <p class="text-sm font-medium text-primary">{{ $package['pricing_summary'] ?? 'Durasi fleksibel, pilih saat reservasi.' }}</p>
                         </div>
                     </a>
                     @endforeach

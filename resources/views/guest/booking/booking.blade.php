@@ -7,9 +7,12 @@
         availabilityUrl: @js(route('booking.availability', ['slug' => $package['slug']])),
         initialDate: @js($selectedDate),
         initialTime: @js($selectedTime),
+        initialDurationHours: @js($selectedDurationHours),
+        durationOptions: @js($durationOptions),
         initialGuestCount: @js($guestCount),
-        initialSlots: @js($availability['slots']),
-        initialMessage: @js($availability['message']),
+        initialAvailability: @js($availability),
+        initialEstimatedPrice: @js($estimatedPrice),
+        initialEstimatedPriceLabel: @js($estimatedPriceLabel),
         today: @js(now()->toDateString()),
         maxGuestCount: @js($maxGuestCount),
     })">
@@ -25,15 +28,14 @@
                             <h1 class="text-5xl font-semibold">{{ $package['name'] }}</h1>
                             <h1 class="text-4xl font-semibold">{{ $package['price'] }}</h1>
                             <p class="text-lg">{{ $package['description'] }}</p>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            @component('components.icon.clock')
-                            @endcomponent
-                            <p class="text-md font-light">{{ $package['duration'] }}</p>
+                            <p class="max-w-3xl text-sm font-light text-white/80">{{ $package['pricing_summary'] ?? '' }}</p>
                         </div>
                         <div class="flex flex-wrap gap-2">
                             <span class="rounded-full bg-white/15 px-4 py-2 text-sm font-medium backdrop-blur">
                                 {{ $package['category'] }}
+                            </span>
+                            <span class="rounded-full bg-white/15 px-4 py-2 text-sm font-medium backdrop-blur">
+                                Jam & durasi dipilih di form
                             </span>
                             @if ($reviewCount > 0)
                                 <span class="rounded-full bg-white/15 px-4 py-2 text-sm font-medium backdrop-blur">
@@ -78,8 +80,6 @@
                 </div>
             </div>
         </div>
-
-        @include('guest.booking.components.booking-calendar-modal')
 
         @include('guest.components.site-footer')
     </div>

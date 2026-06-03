@@ -18,12 +18,14 @@ class CafeTableAssignmentService
         string $startTime,
         int $guestCount,
         ?int $excludeReservationId = null,
+        ?int $durationHours = null,
     ): CafeTable {
         $assignment = $this->previewAssignment(
             $reservationDate,
             $startTime,
             $guestCount,
             $excludeReservationId,
+            $durationHours,
         );
 
         if (! $assignment['is_available'] || ! $assignment['recommended_table'] instanceof CafeTable) {
@@ -52,12 +54,14 @@ class CafeTableAssignmentService
         string $startTime,
         int $guestCount,
         ?int $excludeReservationId = null,
+        ?int $durationHours = null,
     ): array {
         $availability = $this->availabilityService->checkAvailability(
             $reservationDate,
             $startTime,
             $guestCount,
             $excludeReservationId,
+            $durationHours,
         );
 
         $recommendedTable = $availability['available_tables']->first();

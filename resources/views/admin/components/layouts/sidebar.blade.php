@@ -11,8 +11,9 @@
         ],
         'Master Data' => [
             ['label' => 'Menu Cafe', 'route' => 'admin.menu.index', 'active' => 'admin.menu.*', 'icon' => 'menu'],
+            ['label' => 'Paket Reservasi', 'route' => 'admin.packages.index', 'active' => 'admin.packages.*', 'icon' => 'store'],
             ['label' => 'Meja & Area', 'route' => 'admin.tables.index', 'active' => 'admin.tables.*', 'icon' => 'table'],
-            ['label' => 'Slot Reservasi', 'route' => 'admin.slots.index', 'active' => 'admin.slots.*', 'icon' => 'clock'],
+            ['label' => 'Rentang Jam', 'route' => 'admin.slots.index', 'active' => 'admin.slots.*', 'icon' => 'clock'],
             ['label' => 'Pengguna', 'route' => 'admin.users.index', 'active' => 'admin.users.*', 'icon' => 'users'],
         ],
         'Cafe' => [
@@ -64,7 +65,7 @@
 
     <div class="border-t border-base-200 p-4">
         <div class="rounded-box bg-base-200 p-3 text-xs leading-relaxed text-base-content/70">
-            Kelola reservasi, menu, meja, pembayaran, dan profil cafe dari satu panel.
+            Kelola reservasi, paket, meja, pembayaran, dan profil cafe dari satu panel.
         </div>
     </div>
 </aside>

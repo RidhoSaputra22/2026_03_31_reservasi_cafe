@@ -57,6 +57,7 @@ class CafeReservationServiceTest extends TestCase
             'customer_phone' => $customer->phone_number,
             'reservation_date' => $date->toDateString(),
             'start_time' => '18:00',
+            'duration_hours' => 2,
             'guest_count' => 3,
             'notes' => 'Meeting kecil.',
             'payment' => [
@@ -73,6 +74,7 @@ class CafeReservationServiceTest extends TestCase
         $this->assertSame(ReservationStatus::PendingPayment, $reservation->status);
         $this->assertSame('18:00:00', $reservation->start_time);
         $this->assertSame('20:00:00', $reservation->end_time);
+        $this->assertSame(2, $reservation->duration_hours);
         $this->assertSame('50000.00', $reservation->amount_due);
         $this->assertNotNull($payment);
         $this->assertSame(PaymentType::DownPayment, $payment->type);
@@ -123,6 +125,7 @@ class CafeReservationServiceTest extends TestCase
             'customer_phone' => $customer->phone_number,
             'reservation_date' => $date->toDateString(),
             'start_time' => '19:00',
+            'duration_hours' => 2,
             'guest_count' => 2,
             'payment' => [
                 'method' => PaymentMethod::Qris,
@@ -173,6 +176,7 @@ class CafeReservationServiceTest extends TestCase
             'customer_phone' => $customer->phone_number,
             'reservation_date' => $date->toDateString(),
             'start_time' => '10:00',
+            'duration_hours' => 2,
             'guest_count' => 2,
             'payment' => [
                 'type' => PaymentType::FullPayment,
@@ -190,6 +194,40 @@ class CafeReservationServiceTest extends TestCase
         $this->assertSame('150000.00', $reservation->amount_due);
         $this->assertSame(PaymentMethod::Cash, $payment->method);
         $this->assertSame(PaymentStatus::Pending, $payment->status);
+    }
+
+    public function test_it_can_store_a_shorter_duration_than_the_full_slot_window(): void
+    {
+        CafeProfile::factory()->create([
+            'down_payment_amount' => 0,
+        ]);
+
+        $customer = User::factory()->customer()->create();
+
+        CafeTable::factory()->create([
+            'capacity' => 4,
+        ]);
+
+        $date = Carbon::create(2026, 5, 27);
+        $this->createSlot($date, '10:00:00', '12:00:00', 'Brunch');
+
+        $result = app(CafeReservationService::class)->createReservation([
+            'user_id' => $customer->id,
+            'customer_name' => $customer->name,
+            'customer_phone' => $customer->phone_number,
+            'reservation_date' => $date->toDateString(),
+            'start_time' => '10:00',
+            'duration_hours' => 1,
+            'guest_count' => 2,
+            'payment' => [
+                'type' => null,
+            ],
+        ]);
+
+        $reservation = $result['reservation'];
+
+        $this->assertSame('10:00:00', $reservation->start_time);
+        $this->assertSame('11:00:00', $reservation->end_time);
     }
 
     public function test_it_syncs_payment_and_reservation_from_midtrans_notification(): void
@@ -226,6 +264,7 @@ class CafeReservationServiceTest extends TestCase
             'customer_phone' => $customer->phone_number,
             'reservation_date' => $date->toDateString(),
             'start_time' => '20:00',
+            'duration_hours' => 2,
             'guest_count' => 2,
             'payment' => [
                 'method' => PaymentMethod::Qris,
@@ -277,6 +316,7 @@ class CafeReservationServiceTest extends TestCase
             'customer_phone' => $customer->phone_number,
             'reservation_date' => $date->toDateString(),
             'start_time' => '13:00',
+            'duration_hours' => 2,
             'guest_count' => 2,
             'payment' => [
                 'type' => null,
@@ -316,6 +356,7 @@ class CafeReservationServiceTest extends TestCase
             'customer_phone' => $customer->phone_number,
             'reservation_date' => $date->toDateString(),
             'start_time' => '10:00',
+            'duration_hours' => 2,
             'guest_count' => 2,
             'cafe_table_id' => $table->id,
         ]);
@@ -365,6 +406,7 @@ class CafeReservationServiceTest extends TestCase
             'customer_phone' => $customer->phone_number,
             'reservation_date' => $firstDate->toDateString(),
             'start_time' => '18:00',
+            'duration_hours' => 2,
             'guest_count' => 2,
         ]);
 
@@ -416,6 +458,7 @@ class CafeReservationServiceTest extends TestCase
             'customer_phone' => $customer->phone_number,
             'reservation_date' => $date->toDateString(),
             'start_time' => '18:00',
+            'duration_hours' => 2,
             'guest_count' => 2,
             'cafe_table_id' => $table->id,
         ]);

@@ -30,18 +30,23 @@ class CafeAvailabilityService
         string $startTime,
         int $guestCount,
         ?int $excludeReservationId = null,
+        ?int $durationHours = null,
     ): array {
         $date = $this->normalizeDate($reservationDate);
         $startTime = $this->normalizeTime($startTime);
-        $slot = $this->findSlot($date, $startTime);
+        $resolvedDurationHours = max(1, (int) ($durationHours ?? 1));
+        $resolvedEndTime = $this->resolveEndTimeForDuration($startTime, $resolvedDurationHours);
+        $slot = $resolvedEndTime === null
+            ? null
+            : $this->findSlot($date, $startTime, $resolvedEndTime);
 
-        if (! $slot instanceof ReservationSlot) {
+        if ($slot === null) {
             return [
                 'is_available' => false,
-                'reason' => 'Slot reservasi tidak ditemukan atau sedang nonaktif.',
+                'reason' => $this->unavailableScheduleReason($date, $startTime, $resolvedEndTime),
                 'reservation_date' => $date->toDateString(),
                 'start_time' => $startTime,
-                'end_time' => null,
+                'end_time' => $resolvedEndTime,
                 'guest_count' => $guestCount,
                 'slot' => null,
                 'available_tables' => new Collection(),
@@ -51,8 +56,8 @@ class CafeAvailabilityService
 
         $conflictingReservations = $this->getConflictingReservations(
             $date,
-            $slot->start_time,
-            $slot->end_time,
+            $startTime,
+            $resolvedEndTime,
             $excludeReservationId,
         );
 
@@ -65,10 +70,10 @@ class CafeAvailabilityService
             'is_available' => $availableTables->isNotEmpty(),
             'reason' => $availableTables->isNotEmpty()
                 ? null
-                : 'Tidak ada meja aktif yang tersedia untuk slot dan jumlah tamu tersebut.',
+                : 'Tidak ada meja aktif yang tersedia untuk jam dan jumlah tamu tersebut.',
             'reservation_date' => $date->toDateString(),
-            'start_time' => $slot->start_time,
-            'end_time' => $slot->end_time,
+            'start_time' => $startTime,
+            'end_time' => $resolvedEndTime,
             'guest_count' => $guestCount,
             'slot' => $slot,
             'available_tables' => $availableTables,
@@ -76,16 +81,39 @@ class CafeAvailabilityService
         ];
     }
 
-    public function findSlot(CarbonInterface|string $reservationDate, string $startTime): ?ReservationSlot
-    {
+    public function findSlot(
+        CarbonInterface|string $reservationDate,
+        string $startTime,
+        ?string $endTime = null,
+    ): ?ReservationSlot {
         $date = $this->normalizeDate($reservationDate);
         $startTime = $this->normalizeTime($startTime);
+        $endTime = $endTime === null ? null : $this->normalizeTime($endTime);
 
         return ReservationSlot::query()
             ->where('day_of_week', $date->dayOfWeek)
-            ->where('start_time', $startTime)
             ->where('is_active', true)
+            ->where('start_time', '<=', $startTime)
+            ->when(
+                $endTime !== null,
+                fn ($query) => $query->where('end_time', '>=', $endTime),
+            )
+            ->orderBy('start_time')
             ->first();
+    }
+
+    /**
+     * @return Collection<int, ReservationSlot>
+     */
+    public function activeSlotsForDate(CarbonInterface|string $reservationDate): Collection
+    {
+        $date = $this->normalizeDate($reservationDate);
+
+        return ReservationSlot::query()
+            ->where('day_of_week', $date->dayOfWeek)
+            ->where('is_active', true)
+            ->orderBy('start_time')
+            ->get();
     }
 
     /**
@@ -150,6 +178,28 @@ class CafeAvailabilityService
             ->get();
     }
 
+    protected function unavailableScheduleReason(
+        CarbonInterface $date,
+        string $startTime,
+        ?string $endTime,
+    ): string {
+        $activeSlots = $this->activeSlotsForDate($date);
+
+        if ($activeSlots->isEmpty()) {
+            return 'Belum ada rentang jam reservasi aktif pada hari tersebut.';
+        }
+
+        if ($endTime === null) {
+            return 'Durasi reservasi tidak valid.';
+        }
+
+        $activeLabels = $activeSlots
+            ->map(fn (ReservationSlot $slot): string => substr($slot->start_time, 0, 5).'-'.substr((string) $slot->end_time, 0, 5))
+            ->implode(', ');
+
+        return 'Jam reservasi harus berada di dalam rentang aktif: '.$activeLabels.'.';
+    }
+
     protected function normalizeDate(CarbonInterface|string $reservationDate): CarbonInterface
     {
         return $reservationDate instanceof CarbonInterface
@@ -160,5 +210,16 @@ class CafeAvailabilityService
     protected function normalizeTime(string $time): string
     {
         return Carbon::parse($time)->format('H:i:s');
+    }
+
+    public function resolveEndTimeForDuration(string $startTime, int $durationHours): ?string
+    {
+        if ($durationHours <= 0) {
+            return null;
+        }
+
+        return Carbon::parse($this->normalizeTime($startTime))
+            ->addHours($durationHours)
+            ->format('H:i:s');
     }
 }

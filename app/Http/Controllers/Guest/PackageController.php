@@ -20,7 +20,6 @@ class PackageController extends Controller
         $filters = [
             'q' => $request->string('q')->trim()->toString(),
             'category' => $request->string('category')->trim()->toString(),
-            'duration' => $request->string('duration')->trim()->toString(),
             'price' => $request->string('price')->trim()->toString(),
             'sort' => $request->string('sort')->trim()->toString() ?: 'latest',
         ];
@@ -29,7 +28,6 @@ class PackageController extends Controller
             'profile' => CafeProfile::query()->first(),
             'packages' => $this->packageCatalog->filter($filters)->all(),
             'categories' => $this->packageCatalog->categories()->prepend('Semua Kategori')->all(),
-            'durations' => $this->packageCatalog->durations()->prepend('Semua Durasi')->all(),
             'filters' => $filters,
         ]);
     }

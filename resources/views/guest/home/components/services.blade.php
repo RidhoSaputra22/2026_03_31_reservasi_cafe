@@ -41,12 +41,7 @@
                                 {{ $item['description'] }}
                             </p>
                             <div class="space-y-5 text-xl/relaxed font-light text-justify">
-                                <div class=" flex  items-center gap-5">
-                                    @component('components.icon.clock')
-
-                                    @endcomponent
-                                    <p class="text-md/tight">{{ $item['duration'] }}</p>
-                                </div>
+                                <p class="text-md/tight font-medium text-white/80">{{ $item['pricing_summary'] ?? 'Durasi fleksibel, dipilih saat reservasi.' }}</p>
                             </div>
                             <div class="space-y-2  ">
                                 <h2 class="text-lg font-semibold">Fasilitas</h2>

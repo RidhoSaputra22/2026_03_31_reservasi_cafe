@@ -42,17 +42,25 @@ class CafeReservationService
         $reservationDate = $this->normalizeDate($this->requireString($data, 'reservation_date'));
         $startTime = $this->normalizeTime($this->requireString($data, 'start_time'));
         $guestCount = $this->requireInt($data, 'guest_count');
-        $slot = $this->resolveSlot($reservationDate, $startTime);
-        $table = $this->resolveTable($data, $reservationDate, $slot->start_time, $guestCount);
+        $durationHours = isset($data['duration_hours'])
+            ? $this->requireInt($data, 'duration_hours')
+            : $this->resolveDefaultDurationHours($reservationDate, $startTime);
+        $totalPrice = $this->normalizeMoney($data['total_price'] ?? 0);
+        $slot = $this->resolveSlot($reservationDate, $startTime, $durationHours);
+        $endTime = $this->resolveEndTime($startTime, $durationHours);
+        $table = $this->resolveTable($data, $reservationDate, $startTime, $guestCount, null, $durationHours);
 
         return DB::transaction(function () use (
             $customerName,
             $data,
+            $durationHours,
+            $endTime,
             $guestCount,
             $reservationDate,
             $slot,
             $startTime,
             $table,
+            $totalPrice,
             $userId,
         ): array {
             $reservation = Reservation::query()->create([
@@ -60,16 +68,19 @@ class CafeReservationService
                 'user_id' => $userId,
                 'cafe_table_id' => $table->id,
                 'reservation_slot_id' => $slot->id,
+                'reservation_package_id' => $data['reservation_package_id'] ?? null,
                 'package_slug' => $data['package_slug'] ?? null,
                 'package_name' => $data['package_name'] ?? null,
                 'customer_name' => $customerName,
                 'customer_phone' => $data['customer_phone'] ?? null,
                 'reservation_date' => $reservationDate->toDateString(),
-                'start_time' => $slot->start_time,
-                'end_time' => $slot->end_time,
+                'start_time' => $startTime,
+                'end_time' => $endTime,
+                'duration_hours' => $durationHours,
                 'guest_count' => $guestCount,
                 'notes' => $data['notes'] ?? null,
                 'amount_due' => 0,
+                'total_price' => $totalPrice,
                 'status' => ReservationStatus::PendingPayment,
             ]);
 
@@ -148,8 +159,15 @@ class CafeReservationService
         $reservationDate = $this->normalizeDate($data['reservation_date'] ?? $currentDate->toDateString());
         $startTime = $this->normalizeTime((string) ($data['start_time'] ?? $reservation->start_time));
         $guestCount = (int) ($data['guest_count'] ?? $reservation->guest_count);
-        $slot = $this->resolveSlot($reservationDate, $startTime);
-        $table = $this->resolveTable($data, $reservationDate, $slot->start_time, $guestCount, $reservation->id);
+        $durationHours = isset($data['duration_hours'])
+            ? $this->requireInt($data, 'duration_hours')
+            : max(1, (int) ($reservation->duration_hours ?: 1));
+        $totalPrice = array_key_exists('total_price', $data)
+            ? $this->normalizeMoney($data['total_price'])
+            : (float) $reservation->total_price;
+        $slot = $this->resolveSlot($reservationDate, $startTime, $durationHours);
+        $endTime = $this->resolveEndTime($startTime, $durationHours);
+        $table = $this->resolveTable($data, $reservationDate, $startTime, $guestCount, $reservation->id, $durationHours);
         $previousSchedule = [
             'reservation_date' => $currentDate->toDateString(),
             'start_time' => $reservation->start_time,
@@ -158,21 +176,24 @@ class CafeReservationService
             'guest_count' => $reservation->guest_count,
         ];
 
-        return DB::transaction(function () use ($data, $guestCount, $previousSchedule, $reservation, $reservationDate, $slot, $startTime, $table): array {
+        return DB::transaction(function () use ($data, $durationHours, $endTime, $guestCount, $previousSchedule, $reservation, $reservationDate, $slot, $startTime, $table, $totalPrice): array {
             $oldTable = $reservation->cafeTable()->first();
 
             $reservation->forceFill([
                 'cafe_table_id' => $table->id,
                 'reservation_slot_id' => $slot->id,
+                'reservation_package_id' => $data['reservation_package_id'] ?? $reservation->reservation_package_id,
                 'package_slug' => $data['package_slug'] ?? $reservation->package_slug,
                 'package_name' => $data['package_name'] ?? $reservation->package_name,
                 'customer_name' => $data['customer_name'] ?? $reservation->customer_name,
                 'customer_phone' => $data['customer_phone'] ?? $reservation->customer_phone,
                 'reservation_date' => $reservationDate->toDateString(),
-                'start_time' => $slot->start_time,
-                'end_time' => $slot->end_time,
+                'start_time' => $startTime,
+                'end_time' => $endTime,
+                'duration_hours' => $durationHours,
                 'guest_count' => $guestCount,
                 'notes' => $data['notes'] ?? $reservation->notes,
+                'total_price' => $totalPrice,
             ])->save();
 
             $payment = null;
@@ -201,15 +222,39 @@ class CafeReservationService
         });
     }
 
-    protected function resolveSlot(CarbonInterface|string $reservationDate, string $startTime): ReservationSlot
-    {
-        $slot = $this->availabilityService->findSlot($reservationDate, $startTime);
+    protected function resolveSlot(
+        CarbonInterface|string $reservationDate,
+        string $startTime,
+        int $durationHours,
+    ): ReservationSlot {
+        $endTime = $this->resolveEndTime($startTime, $durationHours);
+        $slot = $this->availabilityService->findSlot($reservationDate, $startTime, $endTime);
 
         if (! $slot instanceof ReservationSlot) {
-            throw new RuntimeException('Slot reservasi yang dipilih tidak tersedia.');
+            throw new RuntimeException('Jam reservasi yang dipilih tidak tersedia di rentang operasional aktif.');
         }
 
         return $slot;
+    }
+
+    protected function resolveDefaultDurationHours(
+        CarbonInterface|string $reservationDate,
+        string $startTime,
+    ): int {
+        $slot = $this->availabilityService->findSlot($reservationDate, $startTime);
+
+        if (! $slot instanceof ReservationSlot) {
+            return 1;
+        }
+
+        $minutes = Carbon::parse($this->normalizeTime($startTime))
+            ->diffInMinutes(Carbon::parse((string) $slot->end_time), false);
+
+        if ($minutes < 60) {
+            return 1;
+        }
+
+        return max(1, (int) floor($minutes / 60));
     }
 
     protected function resolveTable(
@@ -218,6 +263,7 @@ class CafeReservationService
         string $startTime,
         int $guestCount,
         ?int $excludeReservationId = null,
+        ?int $durationHours = null,
     ): CafeTable {
         if (isset($data['cafe_table_id'])) {
             $table = CafeTable::query()
@@ -234,6 +280,7 @@ class CafeReservationService
                 $startTime,
                 $guestCount,
                 $excludeReservationId,
+                $durationHours,
             );
 
             $isTableAvailable = $availability['available_tables']
@@ -241,7 +288,7 @@ class CafeReservationService
                 ->contains($table->id);
 
             if (! $isTableAvailable) {
-                throw new RuntimeException('Meja yang dipilih tidak tersedia pada slot tersebut.');
+                throw new RuntimeException('Meja yang dipilih tidak tersedia pada jam tersebut.');
             }
 
             return $table;
@@ -252,6 +299,7 @@ class CafeReservationService
             $startTime,
             $guestCount,
             $excludeReservationId,
+            $durationHours,
         );
     }
 
@@ -297,6 +345,7 @@ class CafeReservationService
             'user',
             'cafeTable',
             'reservationSlot',
+            'reservationPackage',
             'payments',
         ]);
     }
@@ -311,6 +360,11 @@ class CafeReservationService
     protected function normalizeTime(string $time): string
     {
         return Carbon::parse($time)->format('H:i:s');
+    }
+
+    protected function normalizeMoney(mixed $amount): float
+    {
+        return max(0, (float) $amount);
     }
 
     protected function requireString(array $data, string $key): string
@@ -337,6 +391,17 @@ class CafeReservationService
         }
 
         return $value;
+    }
+
+    protected function resolveEndTime(string $startTime, int $durationHours): string
+    {
+        $endTime = $this->availabilityService->resolveEndTimeForDuration($startTime, $durationHours);
+
+        if ($endTime === null) {
+            throw new RuntimeException('Durasi reservasi tidak valid.');
+        }
+
+        return $endTime;
     }
 
     protected function generateReservationCode(): string
