@@ -2,6 +2,20 @@
     $user = auth()->user();
     $selectedPaymentMethod = old('payment_method', \App\Enums\PaymentMethod::Cash->value);
     $downPaymentAmount = $downPaymentAmount ?? 0;
+    $customerName = old('customer_name', $user?->name ?? '');
+    $customerPhone = old('customer_phone', $user?->phone_number ?? '');
+    $customerEmail = $user?->email ?? '';
+    $profileSeed = trim($customerName !== '' ? $customerName : ($customerEmail !== '' ? $customerEmail : 'Cafe Amiko'));
+    $profileWords = preg_split('/\s+/', $profileSeed, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+    $profileInitials = '';
+
+    foreach (array_slice($profileWords, 0, 2) as $word) {
+        $profileInitials .= strtoupper(substr($word, 0, 1));
+    }
+
+    if ($profileInitials === '') {
+        $profileInitials = strtoupper(substr($profileSeed, 0, 2));
+    }
 @endphp
 
 <div>
@@ -34,27 +48,41 @@
                 </div>
             </div>
         @else
-            <form method="POST" action="{{ route('booking.store', ['slug' => $package['slug']]) }}" class="space-y-5">
+            <form method="POST" action="{{ route('booking.store', ['slug' => $package['slug']]) }}" class="space-y-4">
                 @csrf
 
-                <div class="space-y-4 ">
-                    <div class="space-y-2">
-                        <label class="text-sm font-medium text-primary">Nama Lengkap</label>
-                        <input type="text" name="customer_name" value="{{ old('customer_name', $user?->name) }}"
-                            class="w-full rounded-md border border-gray-200 px-4 py-3 text-gray-700" required>
+                <div class="">
+                    <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-lg font-semibold text-white shadow-sm">
+                            {{ substr($profileInitials, 0, 2) }}
+                        </div>
+
+                        <div class="flex-1 ">
+                            <div class="">
+                                <p class="text-lg font-semibold text-primary">
+                                    {{ $customerName !== '' ? $customerName : 'Nama belum tersedia' }}
+                                </p>
+                                <p class="text-sm text-gray-500">
+                                    {{ $customerEmail !== '' ? $customerEmail : 'Email belum tersedia' }}
+
+                                </p>
+
+                            </div>
+
+
+                        </div>
                     </div>
 
-                    <div class="space-y-2">
-                        <label class="text-sm font-medium text-primary">Email</label>
-                        <input type="email" value="{{ $user?->email }}"
-                            class="w-full rounded-md border border-gray-200 bg-gray-100 px-4 py-3 text-gray-700" readonly>
-                    </div>
+                    <input type="hidden" name="customer_name" value="{{ $customerName }}">
+                    <input type="hidden" name="customer_phone" value="{{ $customerPhone }}">
 
-                    <div class="space-y-2">
-                        <label class="text-sm font-medium text-primary">Nomor Telepon</label>
-                        <input type="text" name="customer_phone" value="{{ old('customer_phone', $user?->phone_number) }}"
-                            class="w-full rounded-md border border-gray-200 px-4 py-3 text-gray-700" required>
-                    </div>
+                    @error('customer_name')
+                        <p class="mt-3 text-xs text-red-600">{{ $message }}</p>
+                    @enderror
+
+                    @error('customer_phone')
+                        <p class="mt-3 text-xs text-red-600">{{ $message }}</p>
+                    @enderror
                 </div>
 
                 @include('guest.booking.components.booking-callendar')
