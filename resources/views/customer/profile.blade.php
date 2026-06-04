@@ -7,22 +7,20 @@
     $sessionPaymentOrderId = session('payment_order_id');
     $formatMoney = static fn (float|int $amount): string => 'Rp'.number_format((float) $amount, 0, ',', '.');
     $paymentActionLabel = static function (?App\Models\Payment $payment): string {
-        if (! $payment instanceof App\Models\Payment) {
-            return 'Lanjut Pembayaran';
-        }
-
-        return $payment->type === \App\Enums\PaymentType::FullPayment
-            ? 'Bayar Sisa'
-            : 'Lanjut Pembayaran';
+        return 'Lanjut Pembayaran';
     };
     $hasSnapPayment = filled($sessionPaymentSnapToken)
-        || ($nextReservation?->activePendingPayment() instanceof \App\Models\Payment)
-        || $reservations->contains(fn ($reservation) => $reservation->activePendingPayment() instanceof \App\Models\Payment);
+        || ($nextReservation?->activePendingPayment()?->canBeContinuedByCustomer() ?? false)
+        || $reservations->contains(
+            fn ($reservation) => $reservation->activePendingPayment()?->canBeContinuedByCustomer() ?? false,
+        );
     $hasPendingExpiryCountdown = $reservations->contains(
-        fn ($reservation) => $reservation->activePendingPayment()?->pendingExpiresAt() !== null,
+        fn ($reservation) => ($reservation->activePendingPayment()?->canBeContinuedByCustomer() ?? false)
+            && $reservation->activePendingPayment()?->pendingExpiresAt() !== null,
     );
     $hasPendingExpiryCountdown = $hasPendingExpiryCountdown
-        || ($nextReservation?->activePendingPayment()?->pendingExpiresAt() !== null);
+        || (($nextReservation?->activePendingPayment()?->canBeContinuedByCustomer() ?? false)
+            && $nextReservation?->activePendingPayment()?->pendingExpiresAt() !== null);
 @endphp
 
 <x-layouts.app>
@@ -40,13 +38,13 @@
             </div>
 
             @if (filled($sessionPaymentSnapToken))
-                <div class="rounded-3xl border border-primary/20 bg-primary/5 p-5">
+                <div class="rounded-md border border-primary/20 bg-primary/5 p-5">
                     <p class="text-sm font-medium text-primary">
                         Reservasi berhasil dibuat. Jika ingin menyelesaikan pembayaran online sekarang, lanjutkan lewat tombol di bawah.
                     </p>
                     <button type="button" data-midtrans-snap-button data-snap-token="{{ $sessionPaymentSnapToken }}"
                         data-order-id="{{ $sessionPaymentOrderId }}"
-                        class="guest-loading-button mt-4 inline-flex rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-primary/90">
+                        class="guest-loading-button mt-4 inline-flex rounded-md bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-primary/90">
                         <span class="guest-loading-button__label">
                             {{ session('payment_redirect_label') ?? 'Lanjutkan Pembayaran' }}
                         </span>
@@ -59,19 +57,19 @@
             @endif
 
             <div class="grid gap-4 md:grid-cols-4">
-                <div class="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+                <div class="rounded-md border border-gray-100 bg-white p-5 shadow-sm">
                     <p class="text-sm font-light text-gray-500">Total Reservasi</p>
                     <p class="mt-2 text-3xl font-semibold text-primary">{{ $stats['total'] }}</p>
                 </div>
-                <div class="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+                <div class="rounded-md border border-gray-100 bg-white p-5 shadow-sm">
                     <p class="text-sm font-light text-gray-500">Akan Datang</p>
                     <p class="mt-2 text-3xl font-semibold text-primary">{{ $stats['upcoming'] }}</p>
                 </div>
-                <div class="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+                <div class="rounded-md border border-gray-100 bg-white p-5 shadow-sm">
                     <p class="text-sm font-light text-gray-500">Selesai</p>
                     <p class="mt-2 text-3xl font-semibold text-primary">{{ $stats['completed'] }}</p>
                 </div>
-                <div class="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+                <div class="rounded-md border border-gray-100 bg-white p-5 shadow-sm">
                     <p class="text-sm font-light text-gray-500">Butuh Tindakan</p>
                     <p class="mt-2 text-3xl font-semibold text-primary">{{ $stats['needs_action'] }}</p>
                 </div>
@@ -80,10 +78,11 @@
             @if ($nextReservation)
                 @php
                     $nextPayment = $nextReservation->activePendingPayment() ?? $nextReservation->latestPayment;
-                    $nextCanContinuePayment = $nextPayment?->hasActiveSnapToken() ?? false;
+                    $nextCanContinuePayment = $nextPayment?->canBeContinuedByCustomer() ?? false;
                     $nextPaymentExpiresAt = $nextCanContinuePayment ? $nextPayment?->pendingExpiresAt() : null;
                     $nextTotalPaidAmount = $nextReservation->totalPaidAmount();
                     $nextRemainingAmount = $nextReservation->remainingAmount();
+                    $nextSettlementPayment = $nextReservation->latestSettlementPayment();
                 @endphp
                 <div class="rounded-md border border-primary/15 bg-primary p-6 text-white shadow-xl">
                     <p class="text-sm uppercase tracking-[0.3em] text-white/70">Reservasi Terdekat</p>
@@ -108,8 +107,16 @@
                             </p>
                             @if ($nextCanContinuePayment && $nextPaymentExpiresAt)
                                 <p class="text-sm font-medium text-amber-100">
-                                    {{ $nextPayment->type === \App\Enums\PaymentType::FullPayment ? 'Bayar sisa sebelum' : 'Selesaikan pembayaran sebelum' }}
+                                    Selesaikan pembayaran sebelum
                                     {{ $nextPaymentExpiresAt->translatedFormat('d M Y H:i') }}.
+                                </p>
+                            @elseif ($nextSettlementPayment?->status === \App\Enums\PaymentStatus::Pending)
+                                <p class="text-sm font-medium text-amber-100">
+                                    Pembayaran sisa sedang dibuka admin melalui Midtrans.
+                                </p>
+                            @elseif ($nextSettlementPayment?->status === \App\Enums\PaymentStatus::AwaitingVerification)
+                                <p class="text-sm font-medium text-amber-100">
+                                    Pembayaran sisa sudah diterima dan sedang diverifikasi admin.
                                 </p>
                             @elseif ($nextRemainingAmount > 0 && $nextTotalPaidAmount > 0)
                                 <p class="text-sm font-medium text-amber-100">
@@ -120,7 +127,7 @@
                         @if ($nextCanContinuePayment)
                             <button type="button" data-midtrans-snap-button data-snap-token="{{ $nextPayment->snap_token }}"
                                 data-order-id="{{ $nextPayment->midtrans_order_id ?: $nextPayment->transaction_reference }}"
-                                class="guest-loading-button inline-flex rounded-xl bg-white px-4 py-3 text-sm font-semibold text-primary transition hover:bg-white/90">
+                                class="guest-loading-button inline-flex rounded-md bg-white px-4 py-3 text-sm font-semibold text-primary transition hover:bg-white/90">
                                 <span class="guest-loading-button__label">{{ $paymentActionLabel($nextPayment) }}</span>
                                 <span class="guest-loading-button__state">
                                     <span class="guest-loading-button__spinner" aria-hidden="true"></span>
@@ -139,13 +146,13 @@
                         <p class="text-sm font-light text-gray-500">Semua reservasi pelanggan yang terhubung dengan akun ini.</p>
                     </div>
                     <a href="{{ route('packages.index') }}"
-                        class="inline-flex rounded-xl border border-primary/20 px-4 py-3 text-sm font-semibold text-primary transition hover:border-primary hover:bg-primary/5">
+                        class="inline-flex rounded-md border border-primary/20 px-4 py-3 text-sm font-semibold text-primary transition hover:border-primary hover:bg-primary/5">
                         Buat Reservasi Baru
                     </a>
                 </div>
 
                 @if ($reservations->isEmpty())
-                    <div class="rounded-3xl border border-dashed border-gray-200 bg-white p-10 text-center">
+                    <div class="rounded-md border border-dashed border-gray-200 bg-white p-10 text-center">
                         <h3 class="text-xl font-semibold text-primary">Belum ada reservasi.</h3>
                         <p class="mt-3 text-sm font-light text-gray-500">Mulai dari halaman paket untuk memilih slot yang tersedia.</p>
                     </div>
@@ -155,16 +162,12 @@
                             @php
                                 $payment = $reservation->activePendingPayment() ?? $reservation->latestPayment;
                                 $isHighlighted = (int) session('highlight_reservation_id') === $reservation->id;
-                                $canCancel = in_array($reservation->status->value, [
-                                    \App\Enums\ReservationStatus::PendingPayment->value,
-                                    \App\Enums\ReservationStatus::AwaitingConfirmation->value,
-                                    \App\Enums\ReservationStatus::Confirmed->value,
-                                ], true);
-                                $canContinuePayment = $payment?->hasActiveSnapToken() ?? false;
+                                $canCancel = $reservation->canBeCancelledByCustomer();
+                                $canContinuePayment = $payment?->canBeContinuedByCustomer() ?? false;
                                 $paymentExpiresAt = $canContinuePayment ? $payment?->pendingExpiresAt() : null;
                                 $totalPaidAmount = $reservation->totalPaidAmount();
                                 $remainingAmount = $reservation->remainingAmount();
-                                $activePaymentAmount = $canContinuePayment ? (float) $payment->amount : null;
+                                $activePaymentAmount = $payment?->hasActiveSnapToken() ? (float) $payment->amount : null;
                                 $latestSettlementPayment = $reservation->latestSettlementPayment();
                             @endphp
                             <article id="reservation-{{ $reservation->id }}"
@@ -226,12 +229,26 @@
                                         @if ($paymentExpiresAt)
                                             <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
                                                 <p class="font-semibold">
-                                                    {{ $payment?->type === \App\Enums\PaymentType::FullPayment ? 'Bayar sisa sebelum' : 'Selesaikan pembayaran sebelum' }}
+                                                    Selesaikan pembayaran sebelum
                                                     {{ $paymentExpiresAt->translatedFormat('d M Y H:i') }}.
                                                 </p>
                                                 <p class="mt-1" data-payment-expiry-countdown
                                                     data-expiry-at="{{ $paymentExpiresAt->toIso8601String() }}">
                                                     Sisa waktu pembayaran sedang dihitung...
+                                                </p>
+                                            </div>
+                                        @elseif ($latestSettlementPayment?->status === \App\Enums\PaymentStatus::Pending)
+                                            <div class="rounded-2xl border border-primary/10 bg-primary/5 p-4 text-sm text-primary">
+                                                <p class="font-semibold">Pembayaran sisa sedang dibuka admin melalui Midtrans.</p>
+                                                <p class="mt-1">
+                                                    Admin akan menyelesaikan popup Midtrans dari panel pembayaran.
+                                                </p>
+                                            </div>
+                                        @elseif ($latestSettlementPayment?->status === \App\Enums\PaymentStatus::AwaitingVerification)
+                                            <div class="rounded-2xl border border-primary/10 bg-primary/5 p-4 text-sm text-primary">
+                                                <p class="font-semibold">Pembayaran sisa sudah diterima.</p>
+                                                <p class="mt-1">
+                                                    Saat ini pembayaran sisa sedang menunggu verifikasi admin.
                                                 </p>
                                             </div>
                                         @elseif ($remainingAmount > 0 && $totalPaidAmount > 0)
@@ -260,7 +277,7 @@
                                         @if ($canContinuePayment)
                                             <button type="button" data-midtrans-snap-button data-snap-token="{{ $payment->snap_token }}"
                                                 data-order-id="{{ $payment->midtrans_order_id ?: $payment->transaction_reference }}"
-                                                class="guest-loading-button inline-flex justify-center rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-primary/90">
+                                                class="guest-loading-button inline-flex justify-center rounded-md bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-primary/90">
                                                 <span class="guest-loading-button__label">{{ $paymentActionLabel($payment) }}</span>
                                                 <span class="guest-loading-button__state">
                                                     <span class="guest-loading-button__spinner" aria-hidden="true"></span>
@@ -270,7 +287,7 @@
                                         @endif
 
                                         <a href="{{ route('booking.show', ['slug' => $reservation->package_slug ?? 'coffee-date-corner']) }}"
-                                            class="inline-flex justify-center rounded-xl border border-primary/20 px-4 py-3 text-sm font-semibold text-primary transition hover:border-primary hover:bg-primary/5">
+                                            class="inline-flex justify-center rounded-md border border-primary/20 px-4 py-3 text-sm font-semibold text-primary transition hover:border-primary hover:bg-primary/5">
                                             Lihat Paket
                                         </a>
 
@@ -279,7 +296,7 @@
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit" data-loading-button
-                                                    class="guest-loading-button w-full rounded-xl border border-red-200 px-4 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-50">
+                                                    class="guest-loading-button w-full rounded-md border border-red-200 px-4 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-50">
                                                     <span class="guest-loading-button__label">Batalkan Reservasi</span>
                                                     <span class="guest-loading-button__state">
                                                         <span class="guest-loading-button__spinner" aria-hidden="true"></span>

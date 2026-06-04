@@ -69,11 +69,31 @@ class Payment extends Model
         return $this->belongsTo(User::class, 'verified_by');
     }
 
+    public function isSettlementPayment(): bool
+    {
+        return $this->type === PaymentType::FullPayment;
+    }
+
+    public function isDownPayment(): bool
+    {
+        return $this->type === PaymentType::DownPayment;
+    }
+
     public function hasActiveSnapToken(): bool
     {
         return $this->status === PaymentStatus::Pending
             && filled($this->snap_token)
             && ! $this->isPendingExpired();
+    }
+
+    public function canBeContinuedByCustomer(): bool
+    {
+        return $this->isDownPayment() && $this->hasActiveSnapToken();
+    }
+
+    public function canBeOpenedInAdmin(): bool
+    {
+        return $this->isSettlementPayment() && $this->hasActiveSnapToken();
     }
 
     public function pendingExpiresAt(): ?CarbonInterface

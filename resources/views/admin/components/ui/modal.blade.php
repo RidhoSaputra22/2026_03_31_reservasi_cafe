@@ -36,7 +36,7 @@
         @if($hasHeader)
             <div class="mb-4">
                 <div class="flex items-start justify-between gap-3">
-                    <div class="min-w-0 flex-1 text-left">
+                    <div class="min-w-0 flex-1 text-center ">
                         @if(isset($titleSlot))
                             {{ $titleSlot }}
                         @elseif($title)

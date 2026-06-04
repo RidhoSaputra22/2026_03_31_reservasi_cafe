@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Customer;
 
+use App\Enums\PaymentType;
 use App\Models\CafeTable;
 use App\Models\CafeProfile;
 use App\Models\Payment;
@@ -192,5 +193,65 @@ class CustomerProfileTest extends TestCase
             ->assertOk()
             ->assertDontSee('RSV-EXPIRED-HIDDEN')
             ->assertSee('Belum ada reservasi.');
+    }
+
+    public function test_customer_cannot_cancel_reservation_after_remaining_payment_has_been_paid(): void
+    {
+        CafeProfile::factory()->create();
+
+        $customer = User::factory()->customer()->create([
+            'name' => 'Salsa Pelanggan',
+            'email' => 'salsa@example.test',
+        ]);
+
+        $table = CafeTable::factory()->create([
+            'name' => 'Meja A1',
+            'capacity' => 2,
+        ]);
+
+        $slot = ReservationSlot::factory()->create([
+            'day_of_week' => now()->addDay()->dayOfWeek,
+            'start_time' => '08:00:00',
+            'end_time' => '12:00:00',
+        ]);
+
+        $reservation = Reservation::factory()
+            ->confirmed()
+            ->for($customer)
+            ->for($table, 'cafeTable')
+            ->for($slot, 'reservationSlot')
+            ->create([
+                'reservation_code' => 'RSV-LUNAS',
+                'customer_name' => 'Salsa Pelanggan',
+                'reservation_date' => now()->addDay()->toDateString(),
+                'start_time' => '08:00:00',
+                'end_time' => '12:00:00',
+                'guest_count' => 2,
+                'total_price' => 250000,
+                'amount_due' => 0,
+            ]);
+
+        $downPayment = Payment::factory()
+            ->paid()
+            ->for($reservation)
+            ->create([
+                'type' => PaymentType::DownPayment->value,
+                'amount' => 50000,
+            ]);
+
+        Payment::factory()
+            ->paid()
+            ->for($reservation)
+            ->create([
+                'parent_payment_id' => $downPayment->id,
+                'type' => PaymentType::FullPayment->value,
+                'amount' => 200000,
+            ]);
+
+        $this->actingAs($customer)
+            ->get(route('customer.profile'))
+            ->assertOk()
+            ->assertSee('RSV-LUNAS')
+            ->assertDontSee('Batalkan Reservasi');
     }
 }

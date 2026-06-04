@@ -202,6 +202,32 @@ class Reservation extends Model
             && ! ($this->latestOpenSettlementPayment() instanceof Payment);
     }
 
+    public function canBeCancelledByCustomer(): bool
+    {
+        if (! in_array($this->status, [
+            ReservationStatus::PendingPayment,
+            ReservationStatus::AwaitingConfirmation,
+            ReservationStatus::Confirmed,
+        ], true)) {
+            return false;
+        }
+
+        if ($this->remainingAmount() <= 0) {
+            return false;
+        }
+
+        $settlementPayment = $this->latestSettlementPayment();
+
+        if (! $settlementPayment instanceof Payment) {
+            return true;
+        }
+
+        return ! in_array($settlementPayment->status, [
+            PaymentStatus::Paid,
+            PaymentStatus::AwaitingVerification,
+        ], true);
+    }
+
     public function scopeVisibleToCustomer(Builder $query): Builder
     {
         return $query->where(function (Builder $query): void {

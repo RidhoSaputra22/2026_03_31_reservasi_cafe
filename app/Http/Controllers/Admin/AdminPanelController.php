@@ -433,8 +433,35 @@ class AdminPanelController extends Controller
         return back()->with('success', 'Rentang jam reservasi berhasil dihapus.');
     }
 
-    public function payments(Request $request): View
+    public function payments(
+        Request $request,
+        CafePaymentService $paymentService,
+    ): View|RedirectResponse
     {
+        $midtransOrderId = trim($request->string('midtrans_order_id')->toString());
+
+        if ($midtransOrderId !== '') {
+            try {
+                $payment = $paymentService->syncPaymentFromMidtransOrderId($midtransOrderId);
+            } catch (RuntimeException $exception) {
+                return redirect()
+                    ->route('admin.payments.index', collect($request->query())->except('midtrans_order_id')->all())
+                    ->with('error', $exception->getMessage());
+            }
+
+            [$flashType, $flashMessage] = match ($payment->status) {
+                PaymentStatus::Paid => ['success', 'Pembayaran sisa berhasil dikonfirmasi.'],
+                PaymentStatus::AwaitingVerification => ['info', 'Pembayaran sisa sudah diterima dan sedang menunggu verifikasi.'],
+                PaymentStatus::Failed => ['error', 'Pembayaran sisa belum berhasil. Kamu bisa buka lagi atau buat ulang transaksi Midtrans.'],
+                PaymentStatus::Refunded => ['warning', 'Pembayaran sisa ini telah direfund.'],
+                default => ['info', 'Pembayaran sisa masih diproses Midtrans.'],
+            };
+
+            return redirect()
+                ->route('admin.payments.index', collect($request->query())->except('midtrans_order_id')->all())
+                ->with($flashType, $flashMessage);
+        }
+
         $query = Payment::query()->with(['reservation.payments', 'verifiedBy', 'parentPayment']);
         $this->applySearch($query, $request->string('search')->toString(), ['payment_code', 'transaction_reference', 'midtrans_order_id', 'notes']);
         $query->when($request->filled('status'), fn (Builder $builder) => $builder->where('status', $request->string('status')));
@@ -446,6 +473,10 @@ class AdminPanelController extends Controller
             'methodOptions' => $this->enumOptions(PaymentMethod::cases()),
             'typeOptions' => $this->enumOptions(PaymentType::cases()),
             'midtransConfigured' => app(CafePaymentService::class)->isMidtransConfigured(),
+            'midtransClientKey' => config('services.midtrans.client_key'),
+            'midtransSnapJsUrl' => config('services.midtrans.is_production', false)
+                ? 'https://app.midtrans.com/snap/snap.js'
+                : 'https://app.sandbox.midtrans.com/snap/snap.js',
             'dateFieldOptions' => [
                 ['value' => 'paid_at', 'label' => 'Tanggal dibayar'],
                 ['value' => 'verified_at', 'label' => 'Tanggal diverifikasi'],
@@ -479,8 +510,11 @@ class AdminPanelController extends Controller
             'success',
             'Pembayaran sisa berhasil dibuat via Midtrans sebesar Rp '
                 .number_format((float) $payment->amount, 0, ',', '.')
-                .'. Pelanggan bisa melanjutkannya dari halaman akun.',
-        );
+                .'. Popup Midtrans akan dibuka dari panel admin.',
+        )
+            ->with('admin_payment_snap_token', $payment->snap_token)
+            ->with('admin_payment_order_id', $payment->midtrans_order_id ?: $payment->transaction_reference)
+            ->with('admin_payment_id', $payment->id);
     }
 
     public function updatePaymentStatus(
