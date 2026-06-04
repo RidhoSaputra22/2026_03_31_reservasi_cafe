@@ -29,6 +29,19 @@
 @section('header')
     <x-layouts.page-header title="Panel Pembayaran" description="Validasi DP, metode pembayaran, referensi transaksi, dan status reservasi terkait.">
         <x-slot:actions>
+            <x-ui.button
+                type="primary"
+                size="sm"
+                :isSubmit="false"
+                data-payment-qr-open
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 7V5a1 1 0 011-1h2m10 0h2a1 1 0 011 1v2M4 17v2a1 1 0 001 1h2m10 0h2a1 1 0 001-1v-2M8 12h8" />
+                </svg>
+                Cari Pembayaran
+            </x-ui.button>
             <x-ui.button type="secondary" size="sm" :isSubmit="false"
                 onclick="document.getElementById('export-payments-pdf-modal').showModal()">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
@@ -45,121 +58,9 @@
 
 @section('content')
     <div class="space-y-6">
-        <x-ui.card title="Antrian Verifikasi Pembayaran">
-            <div class="grid gap-4 lg:grid-cols-2">
-                @forelse ($payments->getCollection()->take(4) as $payment)
-                    @php
-                        $reservation = $payment->reservation;
-                        $canCreateSettlement = $midtransConfigured
-                            && $reservation?->canCreateSettlementPayment();
-                        $canOpenMidtransInAdmin = $midtransConfigured
-                            && $payment->canBeOpenedInAdmin();
-                    @endphp
-                    <form method="POST" action="{{ route('admin.payments.status', $payment) }}"
-                        class="rounded-box border border-base-200 bg-base-100 p-4"
-                        data-payment-id="{{ $payment->id }}">
-                        @csrf
-                        @method('PATCH')
-                        <div class="flex items-start justify-between gap-3">
-                            <div>
-                                <p class="font-bold">{{ $payment->payment_code }}</p>
-                                <p class="text-sm text-base-content/60">{{ $payment->reservation?->reservation_code ?? '-' }} · {{ $payment->method->label() }} · Rp {{ number_format((float) $payment->amount, 0, ',', '.') }}</p>
-                                @if ($payment->type === \App\Enums\PaymentType::FullPayment && $payment->parentPayment)
-                                    <p class="mt-1 text-xs text-base-content/60">
-                                        Terkait DP {{ $payment->parentPayment->payment_code }} -> SISA
-                                    </p>
-                                @elseif ($canCreateSettlement)
-                                    <p class="mt-1 text-xs text-base-content/60">
-                                        DP sudah berhasil. Pembayaran sisa bisa dibuat lewat Midtrans.
-                                    </p>
-                                @endif
-                            </div>
-                            <x-ui.badge type="warning" size="sm">{{ $payment->status->label() }}</x-ui.badge>
-                        </div>
-                        <div class="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
-                            <x-ui.select name="status" :options="$statusOptions" :selected="$payment->status->value" size="sm" placeholder="Pilih status" />
-                            <x-ui.button type="primary" size="sm">Update</x-ui.button>
-                        </div>
-                        <x-ui.input name="notes" size="sm" placeholder="Catatan verifikasi" class="mt-3" />
 
-                        @if ($canOpenMidtransInAdmin)
-                            <div class="mt-3 flex justify-end">
-                                <x-ui.button
-                                    type="secondary"
-                                    size="sm"
-                                    :isSubmit="false"
-                                    data-admin-midtrans-open
-                                    data-snap-token="{{ $payment->snap_token }}"
-                                    data-order-id="{{ $payment->midtrans_order_id ?: $payment->transaction_reference }}"
-                                    data-payment-id="{{ $payment->id }}"
-                                >
-                                    <span class="admin-midtrans-button__label">Buka Modal Midtrans</span>
-                                    <span class="admin-midtrans-button__state hidden items-center gap-2">
-                                        <span class="loading loading-spinner loading-xs"></span>
-                                        <span>Menyiapkan...</span>
-                                    </span>
-                                </x-ui.button>
-                            </div>
-                        @endif
-                    </form>
-                    @if ($canCreateSettlement)
-                        <form method="POST" action="{{ route('admin.payments.settlement', $reservation) }}"
-                            class="-mt-1 rounded-box border border-dashed border-primary/20 bg-primary/5 p-4"
-                            x-data="{ creating: false }"
-                            @submit="creating = true">
-                            @csrf
-                            <input type="hidden" name="method" value="{{ \App\Enums\PaymentMethod::Qris->value }}">
-                            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                <div>
-                                    <p class="text-sm font-semibold text-primary">Buka Pembayaran Sisa</p>
-                                    <p class="text-xs text-base-content/70">
-                                        Buat transaksi Midtrans pelunasan sebesar
-                                        Rp {{ number_format((float) $reservation->remainingAmount(), 0, ',', '.') }}.
-                                    </p>
-                                </div>
-                                <x-ui.button type="primary" size="sm" x-bind:disabled="creating" x-bind:class="{ 'loading': creating }">
-                                    <span x-show="!creating">Buat Sisa Midtrans</span>
-                                    <span x-show="creating">Menyiapkan Midtrans...</span>
-                                </x-ui.button>
-                            </div>
-                        </form>
-                    @endif
-                @empty
-                    <div class="rounded-box border border-dashed border-base-300 p-6 text-center text-base-content/60 lg:col-span-2">
-                        Belum ada pembayaran pada filter ini.
-                    </div>
-                @endforelse
-            </div>
-        </x-ui.card>
 
-        @if ($settlementReservations->isNotEmpty())
-            <x-ui.card title="Buka Pembayaran Sisa">
-                <div class="grid gap-4 lg:grid-cols-2">
-                    @foreach ($settlementReservations as $reservation)
-                        <form method="POST" action="{{ route('admin.payments.settlement', $reservation) }}"
-                            class="rounded-box border border-dashed border-primary/20 bg-primary/5 p-4"
-                            x-data="{ creating: false }"
-                            @submit="creating = true">
-                            @csrf
-                            <input type="hidden" name="method" value="{{ \App\Enums\PaymentMethod::Qris->value }}">
-                            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                                <div>
-                                    <p class="font-semibold text-primary">{{ $reservation->reservation_code }}</p>
-                                    <p class="text-sm text-base-content/70">
-                                        DP terbayar Rp {{ number_format((float) $reservation->totalPaidAmount(), 0, ',', '.') }} ·
-                                        Sisa Rp {{ number_format((float) $reservation->remainingAmount(), 0, ',', '.') }}
-                                    </p>
-                                </div>
-                                <x-ui.button type="primary" size="sm" x-bind:disabled="creating" x-bind:class="{ 'loading': creating }">
-                                    <span x-show="!creating">Buat Sisa Midtrans</span>
-                                    <span x-show="creating">Menyiapkan Midtrans...</span>
-                                </x-ui.button>
-                            </div>
-                        </form>
-                    @endforeach
-                </div>
-            </x-ui.card>
-        @endif
+
 
         <x-ui.card>
             <x-ui.data-table
@@ -170,6 +71,8 @@
                 :formats="['type' => 'badge', 'amount' => 'money', 'method' => 'badge', 'status' => 'badge', 'paid_at' => 'datetime', 'verified_at' => 'datetime']"
                 :sortable="['payment_code', 'amount', 'method', 'status', 'paid_at', 'verified_at']"
                 :selectable="false"
+                row-actions-view="admin.payments.partials.row-actions"
+                :row-actions-data="['midtransConfigured' => $midtransConfigured]"
                 :delete-route="fn ($row) => route('admin.payments.destroy', $row)"
             >
                 <x-slot:filters>
@@ -202,8 +105,65 @@
     </div>
 @endsection
 
-@if ($hasAdminSnapPayment && filled($midtransClientKey))
-    @push('modals')
+@push('modals')
+    <x-ui.modal id="admin-payment-qr-modal" title="Cari Pembayaran via QR" size="xl">
+        <div class="space-y-4">
+            <div class="rounded-box border border-base-200 bg-base-100 p-4 text-sm text-base-content/70">
+                Arahkan webcam ke QR dari pelanggan. Hasil scan akan dibaca sebagai kode pembayaran dan langsung bisa
+                dipakai untuk mencari transaksi terkait.
+            </div>
+
+            <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
+                <div class="rounded-box border border-base-200 bg-base-200/30 p-4">
+                    <div
+                        id="admin-payment-qr-reader"
+                        class="flex min-h-[320px] items-center justify-center overflow-hidden rounded-box bg-base-100"
+                    >
+                        <p class="px-4 text-center text-sm text-base-content/50">
+                            Kamera webcam akan muncul di sini saat scanner dibuka.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <div id="admin-payment-qr-status" class="alert alert-info text-sm">
+                        <span>Tekan "Mulai Kamera" atau buka modal ini untuk mulai memindai QR pembayaran pelanggan.</span>
+                    </div>
+
+                    <div class="rounded-box border border-base-200 bg-base-100 p-4">
+                        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-base-content/50">Hasil Scan</p>
+                        <p
+                            id="admin-payment-qr-result"
+                            class="mt-3 min-h-[88px] break-all rounded-box bg-base-200/60 px-3 py-3 font-mono text-sm text-base-content/70"
+                        >
+                            Belum ada hasil scan.
+                        </p>
+                        <p class="mt-3 text-xs text-base-content/60">
+                            QR dari user berisi kode pembayaran DP, misalnya <span class="font-mono">PAY-ABCDE123</span>.
+                        </p>
+                    </div>
+
+                    <div class="rounded-box border border-dashed border-base-300 bg-base-100 p-4 text-xs text-base-content/60">
+                        Setelah QR berhasil terbaca, klik "Cari Sekarang" untuk langsung membuka hasilnya di daftar pembayaran.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <x-slot:modal-actions position="bottom-right">
+            <x-ui.button type="ghost" size="sm" :isSubmit="false" data-payment-qr-start>
+                Mulai Kamera
+            </x-ui.button>
+            <x-ui.button type="ghost" size="sm" :isSubmit="false" data-payment-qr-restart>
+                Scan Ulang
+            </x-ui.button>
+            <x-ui.button type="primary" size="sm" :isSubmit="false" data-payment-qr-search disabled>
+                Cari Sekarang
+            </x-ui.button>
+        </x-slot:modal-actions>
+    </x-ui.modal>
+
+    @if ($hasAdminSnapPayment && filled($midtransClientKey))
         <x-ui.modal id="admin-midtrans-loading-modal" title="Menyiapkan Pembayaran" size="sm" :closeButton="false">
             <div class="flex flex-col items-center gap-4 py-4 text-center">
                 <span class="loading loading-spinner loading-lg text-primary"></span>
@@ -213,8 +173,279 @@
                 </div>
             </div>
         </x-ui.modal>
-    @endpush
+    @endif
+@endpush
 
+@push('scripts')
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.7/html5-qrcode.min.js"></script>
+    <script>
+        window.addEventListener('load', function() {
+            const modal = document.getElementById('admin-payment-qr-modal');
+            const reader = document.getElementById('admin-payment-qr-reader');
+            const status = document.getElementById('admin-payment-qr-status');
+            const result = document.getElementById('admin-payment-qr-result');
+            const openButtons = document.querySelectorAll('[data-payment-qr-open]');
+            const startButton = modal?.querySelector('[data-payment-qr-start]');
+            const restartButton = modal?.querySelector('[data-payment-qr-restart]');
+            const searchButton = modal?.querySelector('[data-payment-qr-search]');
+            const searchForm = document.querySelector('#daftar-pembayaran form[action]');
+            const searchInput = searchForm?.querySelector('input[name="search"]');
+            const statusClasses = {
+                info: 'alert alert-info text-sm',
+                success: 'alert alert-success text-sm',
+                error: 'alert alert-error text-sm',
+                warning: 'alert alert-warning text-sm',
+            };
+
+            let html5QrCode = null;
+            let lastScanResult = '';
+            let scannerActive = false;
+            let scannerStarting = false;
+            let scannerRequestId = 0;
+
+            if (!modal || !reader || !status || !result) {
+                return;
+            }
+
+            const renderReaderPlaceholder = (message) => {
+                reader.innerHTML = `
+                    <p class="px-4 text-center text-sm text-base-content/50">
+                        ${message}
+                    </p>
+                `;
+            };
+
+            const setStatus = (message, tone = 'info') => {
+                status.className = statusClasses[tone] || statusClasses.info;
+                status.innerHTML = '';
+
+                const textNode = document.createElement('span');
+                textNode.textContent = message;
+                status.appendChild(textNode);
+            };
+
+            const syncButtons = () => {
+                if (startButton) {
+                    startButton.disabled = scannerActive || scannerStarting;
+                    startButton.classList.toggle('btn-disabled', startButton.disabled);
+                }
+
+                if (restartButton) {
+                    restartButton.disabled = scannerStarting;
+                    restartButton.classList.toggle('btn-disabled', restartButton.disabled);
+                }
+
+                if (searchButton) {
+                    const disabled = lastScanResult.trim() === '';
+                    searchButton.disabled = disabled;
+                    searchButton.classList.toggle('btn-disabled', disabled);
+                }
+            };
+
+            const setResult = (value = '') => {
+                lastScanResult = value.trim();
+                result.textContent = lastScanResult || 'Belum ada hasil scan.';
+                syncButtons();
+            };
+
+            const stopScanner = async ({ keepPlaceholder = false } = {}) => {
+                scannerRequestId += 1;
+                scannerActive = false;
+                scannerStarting = false;
+
+                const scanner = html5QrCode;
+                html5QrCode = null;
+
+                if (scanner) {
+                    try {
+                        await scanner.stop();
+                    } catch (error) {
+                        //
+                    }
+
+                    try {
+                        await scanner.clear();
+                    } catch (error) {
+                        //
+                    }
+                }
+
+                if (!keepPlaceholder) {
+                    renderReaderPlaceholder('Kamera dihentikan. Buka scanner lagi untuk memindai QR berikutnya.');
+                }
+
+                syncButtons();
+            };
+
+            const submitSearch = () => {
+                if (lastScanResult.trim() === '') {
+                    setStatus('Belum ada hasil scan untuk dicari.', 'warning');
+
+                    return;
+                }
+
+                if (searchInput) {
+                    searchInput.value = lastScanResult;
+                }
+
+                if (searchForm) {
+                    modal.close();
+                    searchForm.submit();
+
+                    return;
+                }
+
+                const url = new URL(window.location.href);
+                url.searchParams.set('search', lastScanResult);
+                url.hash = 'daftar-pembayaran';
+                modal.close();
+                window.location.href = url.toString();
+            };
+
+            const startScanner = async () => {
+                if (scannerActive || scannerStarting) {
+                    return;
+                }
+
+                if (typeof window.Html5Qrcode === 'undefined') {
+                    setStatus('Library QR scanner belum termuat. Muat ulang halaman lalu coba lagi.', 'error');
+
+                    return;
+                }
+
+                if (!modal.open) {
+                    modal.showModal();
+                }
+
+                const requestId = ++scannerRequestId;
+
+                scannerStarting = true;
+                setResult('');
+                renderReaderPlaceholder('Meminta akses kamera webcam...');
+                setStatus('Izinkan kamera lalu arahkan QR pelanggan ke area scanner.', 'info');
+                syncButtons();
+
+                try {
+                    const cameras = await window.Html5Qrcode.getCameras();
+
+                    if (requestId !== scannerRequestId || !modal.open) {
+                        scannerStarting = false;
+                        syncButtons();
+
+                        return;
+                    }
+
+                    if (cameras.length === 0) {
+                        throw new Error('Tidak ada webcam yang terdeteksi.');
+                    }
+
+                    const preferredCamera = cameras.find((camera) => /back|rear|environment/i.test(camera.label))
+                        || cameras[0];
+
+                    reader.innerHTML = '';
+                    html5QrCode = new window.Html5Qrcode('admin-payment-qr-reader');
+
+                    await html5QrCode.start(
+                        preferredCamera.id,
+                        {
+                            fps: 10,
+                            aspectRatio: 1,
+                            qrbox: {
+                                width: 220,
+                                height: 220,
+                            },
+                        },
+                        async (decodedText) => {
+                            const paymentCode = decodedText.trim();
+
+                            if (paymentCode === '' || paymentCode === lastScanResult) {
+                                return;
+                            }
+
+                            setResult(paymentCode);
+                            setStatus(`QR berhasil dibaca: ${paymentCode}`, 'success');
+
+                            if (searchInput) {
+                                searchInput.value = paymentCode;
+                            }
+
+                            await stopScanner({ keepPlaceholder: true });
+                            renderReaderPlaceholder('QR sudah terbaca. Klik "Cari Sekarang" atau gunakan "Scan Ulang".');
+                        },
+                        () => {}
+                    );
+
+                    if (requestId !== scannerRequestId || !modal.open) {
+                        await stopScanner();
+
+                        return;
+                    }
+
+                    scannerStarting = false;
+                    scannerActive = true;
+                    setStatus('Kamera aktif. Arahkan QR pelanggan ke area scanner.', 'info');
+                    syncButtons();
+                } catch (error) {
+                    scannerStarting = false;
+                    scannerActive = false;
+
+                    if (html5QrCode) {
+                        try {
+                            await html5QrCode.clear();
+                        } catch (clearError) {
+                            //
+                        }
+
+                        html5QrCode = null;
+                    }
+
+                    renderReaderPlaceholder('Kamera tidak dapat dijalankan pada perangkat ini.');
+                    setStatus(
+                        error instanceof Error
+                            ? `Scanner gagal dibuka: ${error.message}`
+                            : 'Scanner gagal dibuka. Pastikan izin kamera diberikan.',
+                        'error'
+                    );
+                    syncButtons();
+                }
+            };
+
+            openButtons.forEach((button) => {
+                button.addEventListener('click', () => {
+                    if (!modal.open) {
+                        modal.showModal();
+                    }
+
+                    startScanner();
+                });
+            });
+
+            startButton?.addEventListener('click', () => {
+                startScanner();
+            });
+
+            restartButton?.addEventListener('click', async () => {
+                await stopScanner();
+                startScanner();
+            });
+
+            searchButton?.addEventListener('click', () => {
+                submitSearch();
+            });
+
+            modal.addEventListener('close', () => {
+                stopScanner();
+                setStatus('Scanner ditutup. Buka lagi saat ingin memindai QR berikutnya.', 'info');
+            });
+
+            renderReaderPlaceholder('Kamera webcam akan muncul di sini saat scanner dibuka.');
+            setResult('');
+            syncButtons();
+        });
+    </script>
+@endpush
+
+@if ($hasAdminSnapPayment && filled($midtransClientKey))
     @push('scripts')
         <script src="{{ $midtransSnapJsUrl }}" data-client-key="{{ $midtransClientKey }}"></script>
         <script>

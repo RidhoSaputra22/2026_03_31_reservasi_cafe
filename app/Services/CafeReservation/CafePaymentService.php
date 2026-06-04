@@ -115,31 +115,22 @@ class CafePaymentService
             throw new RuntimeException('Reservasi yang sudah selesai tidak memerlukan pembayaran sisa baru.');
         }
 
-        $remainingAmount = $reservation->remainingAmount();
-
-        if ($reservation->totalPaidAmount() <= 0) {
+        if (! $reservation->hasPaidDownPayment()) {
             throw new RuntimeException('Pembayaran sisa baru bisa dibuat setelah DP berhasil dibayar.');
         }
+
+        $remainingAmount = $reservation->remainingAmount();
 
         if ($remainingAmount <= 0) {
             throw new RuntimeException('Reservasi ini sudah lunas.');
         }
 
-        $openSettlement = $reservation->latestOpenSettlementPayment();
-
-        if ($openSettlement instanceof Payment) {
-            throw new RuntimeException('Pembayaran sisa Midtrans sudah tersedia untuk reservasi ini.');
+        if ($reservation->hasReservationEnded()) {
+            throw new RuntimeException('Waktu reservasi sudah lewat, jadi pembayaran sisa baru tidak bisa dibuat.');
         }
 
-        $pendingSettlement = $reservation->latestSettlementPayment();
-
-        if ($pendingSettlement instanceof Payment
-            && $pendingSettlement->status === PaymentStatus::Pending
-            && $pendingSettlement->isPendingExpired()
-        ) {
-            $this->expirePendingPayment($pendingSettlement);
-            $reservation = $reservation->fresh(['payments']) ?? $reservation->load('payments');
-            $remainingAmount = $reservation->remainingAmount();
+        if ($reservation->hasSettlementPayment()) {
+            throw new RuntimeException('Reservasi ini sudah memiliki transaksi pelunasan.');
         }
 
         $sourcePayment = $reservation->latestPaidDownPayment();

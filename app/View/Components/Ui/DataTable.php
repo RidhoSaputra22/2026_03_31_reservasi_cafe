@@ -39,6 +39,8 @@ class DataTable extends Component
         public mixed $showRoute = null,
         public mixed $editRoute = null,
         public mixed $deleteRoute = null,
+        public ?string $rowActionsView = null,
+        public array $rowActionsData = [],
         public ?string $bulkActionRoute = null,
 
         // ui

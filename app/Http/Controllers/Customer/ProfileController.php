@@ -146,6 +146,47 @@ class ProfileController extends Controller
         return back()->with('success', 'Reservasi berhasil dibatalkan.');
     }
 
+    public function paymentQrs(Request $request): View|RedirectResponse
+    {
+        $user = $request->user();
+
+        if ($user->isAdmin() || $user->isStaff()) {
+            return redirect()->route('dashboard');
+        }
+
+        $requestedReservationId = $request->integer('reservation');
+
+        $reservations = $user->reservations()
+            ->visibleToCustomer()
+            ->with(['cafeTable', 'reservationSlot', 'payments'])
+            ->orderByDesc('reservation_date')
+            ->orderByDesc('start_time')
+            ->get()
+            ->filter(fn (Reservation $reservation): bool => $reservation->hasPaidDownPayment())
+            ->values();
+
+        if ($requestedReservationId > 0) {
+            $reservations = $reservations
+                ->filter(fn (Reservation $reservation): bool => $reservation->id === $requestedReservationId)
+                ->values();
+
+            if ($reservations->isEmpty()) {
+                return redirect()
+                    ->route('customer.profile')
+                    ->with('warning', 'QR pembayaran untuk reservasi tersebut belum tersedia.');
+            }
+        } else {
+            $reservations = $reservations->take(1)->values();
+        }
+
+        $selectedReservation = $reservations->first();
+
+        return view('customer.payment-qrs', [
+            'user' => $user,
+            'reservation' => $selectedReservation,
+        ]);
+    }
+
     /**
      * @param  HasMany<Reservation, *>  $query
      * @param  array<int, string>  $activeStatuses

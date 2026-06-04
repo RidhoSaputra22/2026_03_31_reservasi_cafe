@@ -96,6 +96,24 @@ class Payment extends Model
         return $this->isSettlementPayment() && $this->hasActiveSnapToken();
     }
 
+    public function canCreateSettlementFromAdmin(): bool
+    {
+        if (! $this->isDownPayment() || $this->status !== PaymentStatus::Paid) {
+            return false;
+        }
+
+        $this->loadMissing('reservation.payments');
+
+        $reservation = $this->reservation;
+
+        if (! $reservation instanceof Reservation) {
+            return false;
+        }
+
+        return $reservation->latestPaidDownPayment()?->is($this)
+            && $reservation->canCreateSettlementPayment();
+    }
+
     public function pendingExpiresAt(): ?CarbonInterface
     {
         if ($this->status !== PaymentStatus::Pending || ! $this->created_at instanceof CarbonInterface) {

@@ -1,9 +1,15 @@
+@php
+    $editingTable = $editingTable ?? null;
+@endphp
+
 @extends('admin.layouts.app', ['title' => 'Panel Meja', 'breadcrumbs' => [['label' => 'Meja & Area']]])
 
 @section('header')
     <x-layouts.page-header title="Panel Meja & Area" description="Kelola kode meja, kapasitas, lokasi, status, dan ketersediaan meja cafe.">
         <x-slot:actions>
-            <x-ui.button href="#form-meja" type="primary" size="sm" :isSubmit="false">Tambah Meja</x-ui.button>
+            <x-ui.button href="#form-meja" type="primary" size="sm" :isSubmit="false">
+                {{ $editingTable ? 'Edit Meja' : 'Tambah Meja' }}
+            </x-ui.button>
             <x-ui.button type="ghost" size="sm" :isSubmit="false" onclick="status_meja_help.showModal()">Panduan Status</x-ui.button>
         </x-slot:actions>
     </x-layouts.page-header>
@@ -11,22 +17,40 @@
 
 @section('content')
     <div class="grid gap-6 xl:grid-cols-[.85fr_1.15fr]">
-        <x-ui.card id="form-meja" title="Tambah Meja Baru">
-            <form method="POST" action="{{ route('admin.tables.store') }}" class="space-y-4">
+        <x-ui.card id="form-meja" :title="$editingTable ? 'Edit Meja & Area' : 'Tambah Meja Baru'">
+            <form method="POST"
+                action="{{ $editingTable ? route('admin.tables.update', $editingTable) : route('admin.tables.store') }}"
+                class="space-y-4">
                 @csrf
+                @if ($editingTable)
+                    @method('PATCH')
+                @endif
+
                 <div class="grid gap-4 sm:grid-cols-2">
-                    <x-ui.input name="code" label="Kode Meja" placeholder="A1" required />
-                    <x-ui.input name="name" label="Nama Meja" placeholder="Meja A1" required />
+                    <x-ui.input name="code" label="Kode Meja" :value="$editingTable?->code" placeholder="A1" required />
+                    <x-ui.input name="name" label="Nama Meja" :value="$editingTable?->name" placeholder="Meja A1" required />
                 </div>
                 <div class="grid gap-4 sm:grid-cols-2">
-                    <x-ui.input name="capacity" type="number" label="Kapasitas" placeholder="4" required />
-                    <x-ui.select name="status" label="Status" :options="$statusOptions" selected="available" required />
+                    <x-ui.input name="capacity" type="number" label="Kapasitas" :value="$editingTable?->capacity"
+                        placeholder="4" required />
+                    <x-ui.select name="status" label="Status" :options="$statusOptions"
+                        :selected="$editingTable?->status?->value ?? 'available'" required />
                 </div>
-                <x-ui.input name="location" label="Area" placeholder="Indoor, Outdoor, Window Area" />
-                <x-ui.textarea name="description" label="Catatan" rows="3" placeholder="Contoh: dekat stop kontak, sofa, smoking area" />
-                <x-ui.checkbox name="is_active" :checked="true" singleLabel="Meja aktif untuk reservasi" />
-                <div class="flex justify-end">
-                    <x-ui.button type="primary">Simpan Meja</x-ui.button>
+                <x-ui.input name="location" label="Area" :value="$editingTable?->location"
+                    placeholder="Indoor, Outdoor, Window Area" />
+                <x-ui.textarea name="description" label="Catatan" rows="3" :value="$editingTable?->description"
+                    placeholder="Contoh: dekat stop kontak, sofa, smoking area" />
+                <x-ui.checkbox name="is_active" :checked="$editingTable?->is_active ?? true" singleLabel="Meja aktif untuk reservasi" />
+                <div class="flex flex-wrap items-center justify-end gap-3">
+                    @if ($editingTable)
+                        <x-ui.button href="{{ route('admin.tables.index') }}#form-meja" type="ghost" size="sm"
+                            :isSubmit="false">
+                            Batal Edit
+                        </x-ui.button>
+                    @endif
+                    <x-ui.button type="primary">
+                        {{ $editingTable ? 'Simpan Perubahan' : 'Simpan Meja' }}
+                    </x-ui.button>
                 </div>
             </form>
         </x-ui.card>
@@ -65,6 +89,7 @@
             :formats="['status' => 'badge', 'is_active' => 'boolean']"
             :sortable="['code', 'name', 'capacity', 'status', 'location', 'is_active']"
             :selectable="false"
+            :edit-route="fn ($row) => route('admin.tables.index', ['edit' => $row->id]).'#form-meja'"
             :delete-route="fn ($row) => route('admin.tables.destroy', $row)"
         >
             <x-slot:filters>

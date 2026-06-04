@@ -181,8 +181,13 @@ class AdminPanelController extends Controller
         $this->applySearch($query, $request->string('search')->toString(), ['name', 'category', 'description']);
         $this->applySort($query, ['name', 'category', 'price', 'is_available'], 'name');
 
+        $editingMenuItem = $request->filled('edit')
+            ? MenuItem::query()->find($request->integer('edit'))
+            : null;
+
         return view('admin.menu', [
             'menuItems' => $query->paginate(10),
+            'editingMenuItem' => $editingMenuItem,
             'profile' => $this->ensureProfile(),
             'categories' => MenuItem::query()->whereNotNull('category')->distinct()->orderBy('category')->pluck('category'),
         ]);
@@ -222,7 +227,9 @@ class AdminPanelController extends Controller
             'is_available' => $request->boolean('is_available'),
         ]);
 
-        return back()->with('success', 'Menu berhasil diperbarui.');
+        return redirect()
+            ->route('admin.menu.index')
+            ->with('success', 'Menu berhasil diperbarui.');
     }
 
     public function destroyMenu(MenuItem $menuItem): RedirectResponse
@@ -308,8 +315,13 @@ class AdminPanelController extends Controller
         $query->when($request->filled('status'), fn (Builder $builder) => $builder->where('status', $request->string('status')));
         $this->applySort($query, ['code', 'name', 'capacity', 'status', 'location', 'is_active'], 'code');
 
+        $editingTable = $request->filled('edit')
+            ? CafeTable::query()->find($request->integer('edit'))
+            : null;
+
         return view('admin.tables', [
             'tables' => $query->paginate(10),
+            'editingTable' => $editingTable,
             'statusOptions' => $this->enumOptions(TableStatus::cases()),
         ]);
     }
@@ -351,7 +363,9 @@ class AdminPanelController extends Controller
             'is_active' => $request->boolean('is_active'),
         ]);
 
-        return back()->with('success', 'Meja berhasil diperbarui.');
+        return redirect()
+            ->route('admin.tables.index')
+            ->with('success', 'Meja berhasil diperbarui.');
     }
 
     public function destroyTable(CafeTable $cafeTable): RedirectResponse
@@ -374,8 +388,13 @@ class AdminPanelController extends Controller
         $query->when($request->filled('day_of_week'), fn (Builder $builder) => $builder->where('day_of_week', $request->integer('day_of_week')));
         $this->applySort($query, ['day_of_week', 'start_time', 'end_time', 'is_active'], 'day_of_week');
 
+        $editingSlot = $request->filled('edit')
+            ? ReservationSlot::query()->find($request->integer('edit'))
+            : null;
+
         return view('admin.slots', [
             'slots' => $query->paginate(10),
+            'editingSlot' => $editingSlot,
             'dayOptions' => $this->dayOptions(),
         ]);
     }
@@ -417,7 +436,9 @@ class AdminPanelController extends Controller
             'is_active' => $request->boolean('is_active'),
         ]);
 
-        return back()->with('success', 'Rentang jam reservasi berhasil diperbarui.');
+        return redirect()
+            ->route('admin.slots.index')
+            ->with('success', 'Rentang jam reservasi berhasil diperbarui.');
     }
 
     public function destroySlot(ReservationSlot $reservationSlot): RedirectResponse
@@ -463,7 +484,7 @@ class AdminPanelController extends Controller
         }
 
         $query = Payment::query()->with(['reservation.payments', 'verifiedBy', 'parentPayment']);
-        $this->applySearch($query, $request->string('search')->toString(), ['payment_code', 'transaction_reference', 'midtrans_order_id', 'notes']);
+        $this->applyPaymentSearch($query, $request->string('search')->toString());
         $query->when($request->filled('status'), fn (Builder $builder) => $builder->where('status', $request->string('status')));
         $this->applySort($query, ['payment_code', 'amount', 'method', 'status', 'paid_at', 'verified_at'], 'created_at', 'desc');
 
@@ -596,8 +617,13 @@ class AdminPanelController extends Controller
         $query->when($request->filled('role'), fn (Builder $builder) => $builder->where('role', $request->string('role')));
         $this->applySort($query, ['name', 'email', 'role'], 'name');
 
+        $editingUser = $request->filled('edit')
+            ? User::query()->find($request->integer('edit'))
+            : null;
+
         return view('admin.users', [
             'users' => $query->paginate(10),
+            'editingUser' => $editingUser,
             'roleOptions' => $this->enumOptions(UserRole::cases()),
         ]);
     }
@@ -640,7 +666,9 @@ class AdminPanelController extends Controller
 
         $user->update($validated);
 
-        return back()->with('success', 'Pengguna berhasil diperbarui.');
+        return redirect()
+            ->route('admin.users.index')
+            ->with('success', 'Pengguna berhasil diperbarui.');
     }
 
     public function destroyUser(User $user): RedirectResponse
@@ -822,6 +850,30 @@ class AdminPanelController extends Controller
             foreach ($columns as $column) {
                 $builder->orWhere($column, 'like', "%{$keyword}%");
             }
+        });
+    }
+
+    protected function applyPaymentSearch(Builder $query, ?string $keyword): void
+    {
+        $keyword = trim((string) $keyword);
+
+        if ($keyword === '') {
+            return;
+        }
+
+        $query->where(function (Builder $builder) use ($keyword): void {
+            $builder
+                ->where('payment_code', 'like', "%{$keyword}%")
+                ->orWhere('transaction_reference', 'like', "%{$keyword}%")
+                ->orWhere('midtrans_order_id', 'like', "%{$keyword}%")
+                ->orWhere('notes', 'like', "%{$keyword}%")
+                ->orWhereHas('reservation', function (Builder $reservationQuery) use ($keyword): void {
+                    $reservationQuery
+                        ->where('reservation_code', 'like', "%{$keyword}%")
+                        ->orWhere('customer_name', 'like', "%{$keyword}%")
+                        ->orWhere('customer_phone', 'like', "%{$keyword}%")
+                        ->orWhere('package_name', 'like', "%{$keyword}%");
+                });
         });
     }
 

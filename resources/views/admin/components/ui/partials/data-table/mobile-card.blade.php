@@ -43,8 +43,8 @@
                     @if ($actions)
                         <div class="border-t border-base-200 pt-2">
                             <div class="flex justify-end gap-2">
-                                @isset($rowActions)
-                                    {{ $rowActions($row) }}
+                                @if ($rowActionsView)
+                                    @include($rowActionsView, [...$rowActionsData, 'row' => $row])
                                 @else
                                     @if ($showRoute)
                                         <a href="{{ $showRoute($row) }}" class="btn btn-sm btn-ghost">
@@ -71,7 +71,7 @@
                                             </x-ui.button>
                                         </form>
                                     @endif
-                                @endisset
+                                @endif
                             </div>
                         </div>
                     @endif

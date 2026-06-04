@@ -79,8 +79,8 @@
                         @if ($actions)
                             <td>
                                 <div class="flex items-center justify-center gap-1">
-                                    @isset($rowActions)
-                                        {{ $rowActions($row) }}
+                                    @if ($rowActionsView)
+                                        @include($rowActionsView, [...$rowActionsData, 'row' => $row])
                                     @else
                                         @if ($showRoute)
                                             <a href="{{ $showRoute($row) }}" class="btn btn-ghost btn-xs" title="Fokus"
@@ -117,7 +117,7 @@
                                                 </svg>
                                             </x-ui.button>
                                         @endif
-                                @endisset
+                                    @endif
                             </div>
                         </td>
                     @endif

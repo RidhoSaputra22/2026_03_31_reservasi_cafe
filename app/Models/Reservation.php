@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\PaymentStatus;
 use App\Enums\PaymentType;
 use App\Enums\ReservationStatus;
+use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -195,11 +196,78 @@ class Reservation extends Model
                 && $payment->status === PaymentStatus::Paid);
     }
 
+    public function hasPaidDownPayment(): bool
+    {
+        return $this->latestPaidDownPayment() instanceof Payment;
+    }
+
+    public function hasSettlementPayment(): bool
+    {
+        return $this->latestSettlementPayment() instanceof Payment;
+    }
+
+    public function reservationEndsAt(): ?CarbonInterface
+    {
+        if (! $this->reservation_date instanceof CarbonInterface) {
+            return null;
+        }
+
+        $time = $this->end_time ?: $this->start_time;
+
+        if (! filled($time)) {
+            return $this->reservation_date->copy()->endOfDay();
+        }
+
+        return Carbon::parse(
+            $this->reservation_date->format('Y-m-d').' '.substr((string) $time, 0, 8),
+            config('app.timezone'),
+        );
+    }
+
+    public function hasReservationEnded(?CarbonInterface $referenceTime = null): bool
+    {
+        $endsAt = $this->reservationEndsAt();
+
+        if (! $endsAt instanceof CarbonInterface) {
+            return false;
+        }
+
+        $referenceTime = $referenceTime?->copy() ?? now();
+
+        return $endsAt->lte($referenceTime);
+    }
+
     public function canCreateSettlementPayment(): bool
     {
-        return $this->totalPaidAmount() > 0
+        return $this->hasPaidDownPayment()
             && $this->remainingAmount() > 0
-            && ! ($this->latestOpenSettlementPayment() instanceof Payment);
+            && ! $this->hasSettlementPayment()
+            && ! $this->hasReservationEnded()
+            && ! in_array($this->status, [
+                ReservationStatus::Cancelled,
+                ReservationStatus::Completed,
+            ], true);
+    }
+
+    public function settlementStatusLabel(): string
+    {
+        if ($this->remainingAmount() <= 0) {
+            return 'Sudah Dilunasi';
+        }
+
+        $settlementPayment = $this->latestSettlementPayment();
+
+        if (! $settlementPayment instanceof Payment) {
+            return 'Belum Dilunasi';
+        }
+
+        return match ($settlementPayment->status) {
+            PaymentStatus::Pending => 'Pelunasan Sedang Diproses',
+            PaymentStatus::AwaitingVerification => 'Pelunasan Menunggu Verifikasi',
+            PaymentStatus::Failed => 'Pelunasan Belum Berhasil',
+            PaymentStatus::Refunded => 'Pelunasan Direfund',
+            PaymentStatus::Paid => 'Sudah Dilunasi',
+        };
     }
 
     public function canBeCancelledByCustomer(): bool

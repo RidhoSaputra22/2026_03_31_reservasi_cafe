@@ -32,6 +32,7 @@ Route::controller(AuthenticationController::class)->group(function (): void {
 
 Route::middleware('auth')->group(function (): void {
     Route::get('/akun', [ProfileController::class, 'show'])->name('customer.profile');
+    Route::get('/akun/qr-pembayaran', [ProfileController::class, 'paymentQrs'])->name('customer.payments.qr');
     Route::delete('/akun/reservasi/{reservation}', [ProfileController::class, 'cancel'])->name('customer.reservations.cancel');
     Route::post('/booking/{slug}', [BookingController::class, 'store'])->name('booking.store');
 });

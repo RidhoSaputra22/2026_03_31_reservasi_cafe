@@ -9,6 +9,8 @@ use App\Enums\ReservationStatus;
 use App\Enums\TableStatus;
 use App\Models\CafeProfile;
 use App\Models\CafeTable;
+use App\Models\Payment;
+use App\Models\Reservation;
 use App\Models\ReservationSlot;
 use App\Models\User;
 use App\Services\CafeReservation\CafeAvailabilityService;
@@ -662,6 +664,68 @@ class CafeReservationServiceTest extends TestCase
         $this->assertCount(1, $availability['conflicting_reservations']);
         $this->assertSame($table->id, $availability['conflicting_reservations']->first()->cafe_table_id);
         $this->assertTrue($availability['available_tables']->isEmpty());
+    }
+
+    public function test_it_cannot_create_settlement_payment_after_reservation_time_has_passed(): void
+    {
+        config([
+            'services.midtrans.server_key' => 'SB-Mid-server-test',
+        ]);
+
+        Carbon::setTestNow(Carbon::create(2026, 6, 4, 15, 0, 0));
+
+        try {
+            $reservation = Reservation::factory()->confirmed()->create([
+                'reservation_date' => now()->toDateString(),
+                'start_time' => '10:00:00',
+                'end_time' => '12:00:00',
+                'total_price' => 250000,
+                'amount_due' => 200000,
+            ]);
+
+            Payment::factory()->paid()->for($reservation)->create([
+                'type' => PaymentType::DownPayment->value,
+                'amount' => 50000,
+            ]);
+
+            $this->expectException(\RuntimeException::class);
+            $this->expectExceptionMessage('Waktu reservasi sudah lewat');
+
+            app(CafePaymentService::class)->createSettlementPaymentForReservation($reservation);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_it_cannot_create_settlement_payment_when_a_settlement_transaction_already_exists(): void
+    {
+        config([
+            'services.midtrans.server_key' => 'SB-Mid-server-test',
+        ]);
+
+        $reservation = Reservation::factory()->confirmed()->create([
+            'reservation_date' => now()->addDay()->toDateString(),
+            'start_time' => '18:00:00',
+            'end_time' => '20:00:00',
+            'total_price' => 250000,
+            'amount_due' => 200000,
+        ]);
+
+        $downPayment = Payment::factory()->paid()->for($reservation)->create([
+            'type' => PaymentType::DownPayment->value,
+            'amount' => 50000,
+        ]);
+
+        Payment::factory()->failed()->for($reservation)->create([
+            'parent_payment_id' => $downPayment->id,
+            'type' => PaymentType::FullPayment->value,
+            'amount' => 200000,
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('sudah memiliki transaksi pelunasan');
+
+        app(CafePaymentService::class)->createSettlementPaymentForReservation($reservation);
     }
 
     protected function createSlot(

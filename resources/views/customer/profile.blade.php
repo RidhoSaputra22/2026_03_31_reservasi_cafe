@@ -21,6 +21,11 @@
     $hasPendingExpiryCountdown = $hasPendingExpiryCountdown
         || (($nextReservation?->activePendingPayment()?->canBeContinuedByCustomer() ?? false)
             && $nextReservation?->activePendingPayment()?->pendingExpiresAt() !== null);
+    $hasPaymentQrReservations = ($nextReservation?->hasPaidDownPayment() ?? false)
+        || $reservations->contains(fn ($reservation) => $reservation->hasPaidDownPayment());
+    $firstPaymentQrReservation = $nextReservation?->hasPaidDownPayment()
+        ? $nextReservation
+        : $reservations->first(fn ($reservation) => $reservation->hasPaidDownPayment());
 @endphp
 
 <x-layouts.app>
@@ -145,10 +150,19 @@
                         <h2 class="text-2xl font-semibold text-primary">Riwayat Reservasi</h2>
                         <p class="text-sm font-light text-gray-500">Semua reservasi pelanggan yang terhubung dengan akun ini.</p>
                     </div>
-                    <a href="{{ route('packages.index') }}"
-                        class="inline-flex rounded-md border border-primary/20 px-4 py-3 text-sm font-semibold text-primary transition hover:border-primary hover:bg-primary/5">
-                        Buat Reservasi Baru
-                    </a>
+                    <div class="flex flex-wrap items-center justify-end gap-3">
+                        @if ($hasPaymentQrReservations)
+                            <a href="{{ route('customer.payments.qr', ['reservation' => $firstPaymentQrReservation?->id]) }}"
+                                class="inline-flex rounded-md border border-primary/20 px-4 py-3 text-sm font-semibold text-primary transition hover:border-primary hover:bg-primary/5">
+                                QR Pembayaran
+                            </a>
+                        @endif
+
+                        <a href="{{ route('packages.index') }}"
+                            class="inline-flex rounded-md border border-primary/20 px-4 py-3 text-sm font-semibold text-primary transition hover:border-primary hover:bg-primary/5">
+                            Buat Reservasi Baru
+                        </a>
+                    </div>
                 </div>
 
                 @if ($reservations->isEmpty())
@@ -157,7 +171,7 @@
                         <p class="mt-3 text-sm font-light text-gray-500">Mulai dari halaman paket untuk memilih slot yang tersedia.</p>
                     </div>
                 @else
-                    <div class="grid gap-5">
+                    <div class="grid gap-4">
                         @foreach ($reservations as $reservation)
                             @php
                                 $payment = $reservation->activePendingPayment() ?? $reservation->latestPayment;
@@ -169,13 +183,14 @@
                                 $remainingAmount = $reservation->remainingAmount();
                                 $activePaymentAmount = $payment?->hasActiveSnapToken() ? (float) $payment->amount : null;
                                 $latestSettlementPayment = $reservation->latestSettlementPayment();
+                                $hasPaymentQr = $reservation->hasPaidDownPayment();
                             @endphp
                             <article id="reservation-{{ $reservation->id }}"
-                                class="rounded-md border bg-white p-6 shadow-sm {{ $isHighlighted ? 'border-primary shadow-primary/10' : 'border-gray-100' }}">
-                                <div class="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-                                    <div class="space-y-3">
-                                        <div class="flex flex-wrap items-center gap-3">
-                                            <h3 class="text-2xl font-semibold text-primary">
+                                class="rounded-md border bg-white p-4 shadow-sm {{ $isHighlighted ? 'border-primary shadow-primary/10' : 'border-gray-100' }}">
+                                <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                    <div class="space-y-2">
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <h3 class="text-xl font-semibold text-primary">
                                                 {{ $reservation->package_name ?? 'Reservasi Cafe Amiko' }}
                                             </h3>
                                             <span class="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
@@ -188,7 +203,7 @@
                                             {{ substr($reservation->start_time, 0, 5) }} - {{ substr((string) $reservation->end_time, 0, 5) }}
                                         </p>
 
-                                        <dl class="grid gap-3 text-sm text-gray-600 md:grid-cols-2 xl:grid-cols-4">
+                                        <dl class="grid gap-x-4 gap-y-2 text-sm text-gray-600 md:grid-cols-2 xl:grid-cols-4">
                                             <div>
                                                 <dt class="font-semibold text-primary">Tamu</dt>
                                                 <dd>{{ $reservation->guest_count }} orang</dd>
@@ -220,14 +235,8 @@
 
                                         </dl>
 
-                                        @if ($reservation->notes)
-                                            <div class="rounded-2xl border border-gray-100 bg-gray-50 p-4 text-sm font-light text-gray-600">
-                                                {!! nl2br(e($reservation->notes)) !!}
-                                            </div>
-                                        @endif
-
                                         @if ($paymentExpiresAt)
-                                            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                                            <div class="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
                                                 <p class="font-semibold">
                                                     Selesaikan pembayaran sebelum
                                                     {{ $paymentExpiresAt->translatedFormat('d M Y H:i') }}.
@@ -238,21 +247,21 @@
                                                 </p>
                                             </div>
                                         @elseif ($latestSettlementPayment?->status === \App\Enums\PaymentStatus::Pending)
-                                            <div class="rounded-2xl border border-primary/10 bg-primary/5 p-4 text-sm text-primary">
+                                            <div class="rounded-md border border-primary/10 bg-primary/5 p-3 text-sm text-primary">
                                                 <p class="font-semibold">Pembayaran sisa sedang dibuka admin melalui Midtrans.</p>
                                                 <p class="mt-1">
                                                     Admin akan menyelesaikan popup Midtrans dari panel pembayaran.
                                                 </p>
                                             </div>
                                         @elseif ($latestSettlementPayment?->status === \App\Enums\PaymentStatus::AwaitingVerification)
-                                            <div class="rounded-2xl border border-primary/10 bg-primary/5 p-4 text-sm text-primary">
+                                            <div class="rounded-md border border-primary/10 bg-primary/5 p-3 text-sm text-primary">
                                                 <p class="font-semibold">Pembayaran sisa sudah diterima.</p>
                                                 <p class="mt-1">
                                                     Saat ini pembayaran sisa sedang menunggu verifikasi admin.
                                                 </p>
                                             </div>
                                         @elseif ($remainingAmount > 0 && $totalPaidAmount > 0)
-                                            <div class="rounded-2xl border border-primary/10 bg-primary/5 p-4 text-sm text-primary">
+                                            <div class="rounded-md border border-primary/10 bg-primary/5 p-3 text-sm text-primary">
                                                 <p class="font-semibold">Sisa pembayaran {{ $formatMoney($remainingAmount) }}.</p>
                                                 @if ($latestSettlementPayment?->status === \App\Enums\PaymentStatus::Failed)
                                                     <p class="mt-1">
@@ -267,17 +276,17 @@
                                         @endif
 
                                         @if ($reservation->status === \App\Enums\ReservationStatus::Cancelled && filled($reservation->cancellation_reason))
-                                            <div class="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm text-red-700">
+                                            <div class="rounded-md border border-red-100 bg-red-50 p-3 text-sm text-red-700">
                                                 {{ $reservation->cancellation_reason }}
                                             </div>
                                         @endif
                                     </div>
 
-                                    <div class="flex flex-col gap-3 lg:w-56">
+                                    <div class="flex flex-col gap-2 lg:w-52">
                                         @if ($canContinuePayment)
                                             <button type="button" data-midtrans-snap-button data-snap-token="{{ $payment->snap_token }}"
                                                 data-order-id="{{ $payment->midtrans_order_id ?: $payment->transaction_reference }}"
-                                                class="guest-loading-button inline-flex justify-center rounded-md bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-primary/90">
+                                                class="guest-loading-button inline-flex justify-center rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary/90">
                                                 <span class="guest-loading-button__label">{{ $paymentActionLabel($payment) }}</span>
                                                 <span class="guest-loading-button__state">
                                                     <span class="guest-loading-button__spinner" aria-hidden="true"></span>
@@ -286,8 +295,15 @@
                                             </button>
                                         @endif
 
+                                        @if ($hasPaymentQr)
+                                            <a href="{{ route('customer.payments.qr', ['reservation' => $reservation->id]) }}"
+                                                class="inline-flex justify-center rounded-md border border-primary/20 px-4 py-2.5 text-sm font-semibold text-primary transition hover:border-primary hover:bg-primary/5">
+                                                Lihat QR
+                                            </a>
+                                        @endif
+
                                         <a href="{{ route('booking.show', ['slug' => $reservation->package_slug ?? 'coffee-date-corner']) }}"
-                                            class="inline-flex justify-center rounded-md border border-primary/20 px-4 py-3 text-sm font-semibold text-primary transition hover:border-primary hover:bg-primary/5">
+                                            class="inline-flex justify-center rounded-md border border-primary/20 px-4 py-2.5 text-sm font-semibold text-primary transition hover:border-primary hover:bg-primary/5">
                                             Lihat Paket
                                         </a>
 
@@ -296,7 +312,7 @@
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit" data-loading-button
-                                                    class="guest-loading-button w-full rounded-md border border-red-200 px-4 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-50">
+                                                    class="guest-loading-button w-full rounded-md border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50">
                                                     <span class="guest-loading-button__label">Batalkan Reservasi</span>
                                                     <span class="guest-loading-button__state">
                                                         <span class="guest-loading-button__spinner" aria-hidden="true"></span>
