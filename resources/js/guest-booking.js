@@ -88,6 +88,8 @@ document.addEventListener('alpine:init', () => {
         availability: config.initialAvailability || {},
         estimatedPrice: Number(config.initialEstimatedPrice || 0),
         estimatedPriceLabel: config.initialEstimatedPriceLabel || '',
+        confirmationModalOpen: false,
+        submitting: false,
         loading: false,
         refreshDebounceId: null,
 
@@ -254,6 +256,62 @@ document.addEventListener('alpine:init', () => {
 
         priceSummary() {
             return this.estimatedPriceLabel || 'Rp. 0';
+        },
+
+        formattedReservationDate() {
+            if (!this.reservationDate) {
+                return 'Belum dipilih';
+            }
+
+            const date = new Date(`${this.reservationDate}T00:00:00`);
+
+            if (Number.isNaN(date.getTime())) {
+                return this.reservationDate;
+            }
+
+            return new Intl.DateTimeFormat('id-ID', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+            }).format(date);
+        },
+
+        openConfirmationModal() {
+            const form = this.$refs.bookingForm;
+
+            if (!form || this.loading || this.submitting || !this.isAvailable()) {
+                return;
+            }
+
+            if (typeof form.reportValidity === 'function' && !form.reportValidity()) {
+                return;
+            }
+
+            this.confirmationModalOpen = true;
+        },
+
+        closeConfirmationModal() {
+            if (this.submitting) {
+                return;
+            }
+
+            this.confirmationModalOpen = false;
+        },
+
+        submitReservationForm() {
+            const form = this.$refs.bookingForm;
+
+            if (!form || this.loading || this.submitting) {
+                return;
+            }
+
+            if (typeof form.reportValidity === 'function' && !form.reportValidity()) {
+                return;
+            }
+
+            this.submitting = true;
+            this.confirmationModalOpen = false;
+            form.submit();
         },
     }));
 });

@@ -190,3 +190,7 @@
     --swiper-pagination-bullet-inactive-color: rgba(255, 255, 255, 0.35); /* bullet nonaktif */
     --swiper-pagination-bullet-inactive-opacity: 1;
 }
+
+button{
+    @apply cursor-pointer
+}

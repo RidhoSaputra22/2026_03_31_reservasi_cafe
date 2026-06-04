@@ -1,5 +1,11 @@
 @php
     $package = $package ?? collect(config('packages'))->first();
+    $paymentSnapToken = session('payment_snap_token');
+    $paymentOrderId = session('payment_order_id');
+    $midtransClientKey = config('services.midtrans.client_key');
+    $midtransSnapJsUrl = config('services.midtrans.is_production', false)
+        ? 'https://app.midtrans.com/snap/snap.js'
+        : 'https://app.sandbox.midtrans.com/snap/snap.js';
 @endphp
 
 <x-layouts.app>
@@ -80,6 +86,42 @@
                 </div>
             </div>
         </div>
+
+        @if (filled($paymentSnapToken) && filled($midtransClientKey))
+            @push('scripts')
+                <script src="{{ $midtransSnapJsUrl }}" data-client-key="{{ $midtransClientKey }}"></script>
+                <script>
+                    window.addEventListener('load', function() {
+                        const snapToken = @js($paymentSnapToken);
+                        const fallbackOrderId = @js($paymentOrderId);
+                        const profileUrl = @js(route('customer.profile'));
+
+                        if (!snapToken || !window.snap) {
+                            return;
+                        }
+
+                        const buildProfileUrl = (orderId) => {
+                            const url = new URL(profileUrl, window.location.origin);
+
+                            if (orderId) {
+                                url.searchParams.set('midtrans_order_id', orderId);
+                            }
+
+                            return url.toString();
+                        };
+
+                        window.snap.pay(snapToken, {
+                            onSuccess: function(result) {
+                                window.location.href = buildProfileUrl(result?.order_id || fallbackOrderId);
+                            },
+                            onPending: function() {},
+                            onError: function() {},
+                            onClose: function() {},
+                        });
+                    });
+                </script>
+            @endpush
+        @endif
 
         @include('guest.components.site-footer')
     </div>

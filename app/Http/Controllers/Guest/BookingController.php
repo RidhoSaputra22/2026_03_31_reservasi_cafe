@@ -192,12 +192,28 @@ class BookingController extends Controller
         $reservation = $result['reservation'];
         $payment = $result['payment'];
 
+        if ($request->boolean('start_midtrans_payment') && filled($payment?->snap_token)) {
+            return redirect()
+                ->route('booking.show', [
+                    'slug' => $package['slug'],
+                    'date' => $validated['reservation_date'],
+                    'time' => $validated['start_time'],
+                    'duration_hours' => $durationHours,
+                    'guest_count' => (int) $validated['guest_count'],
+                ])
+                ->with('success', 'Reservasi berhasil dibuat dengan kode '.$reservation->reservation_code.'.')
+                ->with('highlight_reservation_id', $reservation->id)
+                ->with('payment_snap_token', $payment->snap_token)
+                ->with('payment_order_id', $payment->midtrans_order_id ?: $payment->transaction_reference);
+        }
+
         return redirect()
             ->route('customer.profile')
             ->with('success', 'Reservasi berhasil dibuat dengan kode '.$reservation->reservation_code.'.')
             ->with('highlight_reservation_id', $reservation->id)
-            ->with('payment_redirect_url', $payment?->snap_redirect_url)
-            ->with('payment_redirect_label', $payment?->snap_redirect_url ? 'Lanjutkan pembayaran online' : null);
+            ->with('payment_snap_token', $payment?->snap_token)
+            ->with('payment_order_id', $payment?->midtrans_order_id ?: $payment?->transaction_reference)
+            ->with('payment_redirect_label', $payment?->snap_token ? 'Lanjutkan pembayaran online' : null);
     }
 
     public function storeReview(StoreGuestReviewRequest $request, string $slug): RedirectResponse

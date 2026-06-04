@@ -1,6 +1,6 @@
 @php
     $user = auth()->user();
-    $selectedPaymentMethod = old('payment_method', \App\Enums\PaymentMethod::Cash->value);
+    $selectedPaymentMethod = old('payment_method', \App\Enums\PaymentMethod::Qris->value);
     $downPaymentAmount = $downPaymentAmount ?? 0;
     $customerName = old('customer_name', $user?->name ?? '');
     $customerPhone = old('customer_phone', $user?->phone_number ?? '');
@@ -8,6 +8,9 @@
     $profileSeed = trim($customerName !== '' ? $customerName : ($customerEmail !== '' ? $customerEmail : 'Cafe Amiko'));
     $profileWords = preg_split('/\s+/', $profileSeed, -1, PREG_SPLIT_NO_EMPTY) ?: [];
     $profileInitials = '';
+    $basePriceAmount = max(0, (int) ($package['base_price_amount'] ?? $package['price_amount'] ?? 0));
+    $includedHours = max(1, (int) ($package['included_hours'] ?? 1));
+    $extraHourPriceAmount = max(0, (int) ($package['extra_hour_price_amount'] ?? 0));
 
     foreach (array_slice($profileWords, 0, 2) as $word) {
         $profileInitials .= strtoupper(substr($word, 0, 1));
@@ -48,7 +51,8 @@
                 </div>
             </div>
         @else
-            <form method="POST" action="{{ route('booking.store', ['slug' => $package['slug']]) }}" class="space-y-4">
+            <form method="POST" action="{{ route('booking.store', ['slug' => $package['slug']]) }}" class="space-y-4"
+                x-ref="bookingForm" @submit.prevent="openConfirmationModal()">
                 @csrf
 
                 <div class="">
@@ -75,6 +79,8 @@
 
                     <input type="hidden" name="customer_name" value="{{ $customerName }}">
                     <input type="hidden" name="customer_phone" value="{{ $customerPhone }}">
+                    <input type="hidden" name="payment_method" value="{{ $selectedPaymentMethod }}">
+                    <input type="hidden" name="start_midtrans_payment" value="1">
 
                     @error('customer_name')
                         <p class="mt-3 text-xs text-red-600">{{ $message }}</p>
@@ -88,32 +94,40 @@
                 @include('guest.booking.components.booking-callendar')
 
                 <div class="space-y-2">
-                    <label class="text-sm font-medium text-primary">Metode Pembayaran</label>
-                    <select name="payment_method" class="w-full rounded-md border border-gray-200 px-4 py-3">
-                        @foreach ($paymentMethods as $method)
-                            <option value="{{ $method->value }}" @selected($selectedPaymentMethod === $method->value)>
-                                {{ $method->label() }}
-                            </option>
-                        @endforeach
-                    </select>
-                    @if ($downPaymentAmount > 0)
-                        <p class="text-xs font-light text-gray-500">
-                            Sistem akan membuat tagihan DP awal sebesar
-                            <span class="font-semibold text-primary">Rp{{ number_format($downPaymentAmount, 0, ',', '.') }}</span>.
-                        </p>
+                    <label class="text-sm font-medium text-primary">Total Biaya</label>
+                    <p class="text-2xl font-bold text-primary"
+                        x-text="new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format({{ $basePriceAmount }} + (Math.max(0, Number(durationHours || 1) - {{ $includedHours }}) * {{ $extraHourPriceAmount }}))">
+                        {{ $estimatedPriceLabel }}
+                    </p>
+                    @if ($extraHourPriceAmount > 0)
+                    <p class="text-sm text-gray-500">
+                        Ada biaya tambahan sebesar
+                        <span class="font-medium text-primary">
+                            {{ 'Rp ' . number_format($extraHourPriceAmount, 0, ',', '.') }}
+                        </span>
+                        per jam untuk durasi di atas {{ $includedHours }} jam.
+                    </p>
+
                     @endif
                 </div>
 
 
 
                 <div>
-                    <button type="submit" :disabled="loading || !reservationDate || !startTime || !isAvailable()"
+                    <button type="button" @click="openConfirmationModal()"
+                        :disabled="loading || submitting || !reservationDate || !startTime || !isAvailable()"
                         class="w-full rounded-md bg-primary px-4 py-3 font-semibold text-white transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-primary/50">
-                        <span x-show="!loading">Kirim Permintaan Reservasi</span>
+                        <span x-show="!loading && !submitting">Kirim Permintaan Reservasi</span>
+                        <span x-show="submitting" x-cloak>Menyiapkan reservasi...</span>
                         <span x-show="loading" x-cloak>Memeriksa jadwal...</span>
                     </button>
                 </div>
             </form>
+
+            @include('guest.booking.components.booking-confirmation-modal', [
+                'package' => $package,
+                'downPaymentAmount' => $downPaymentAmount,
+            ])
         @endguest
     </div>
 </div>

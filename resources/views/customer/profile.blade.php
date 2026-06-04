@@ -1,3 +1,15 @@
+@php
+    $midtransClientKey = config('services.midtrans.client_key');
+    $midtransSnapJsUrl = config('services.midtrans.is_production', false)
+        ? 'https://app.midtrans.com/snap/snap.js'
+        : 'https://app.sandbox.midtrans.com/snap/snap.js';
+    $sessionPaymentSnapToken = session('payment_snap_token');
+    $sessionPaymentOrderId = session('payment_order_id');
+    $hasSnapPayment = filled($sessionPaymentSnapToken)
+        || filled($nextReservation?->payments->first()?->snap_token)
+        || $reservations->contains(fn ($reservation) => filled($reservation->payments->first()?->snap_token));
+@endphp
+
 <x-layouts.app>
     <div>
         @include('guest.components.site-navbar')
@@ -12,15 +24,16 @@
                 </p>
             </div>
 
-            @if (session('payment_redirect_url'))
+            @if (filled($sessionPaymentSnapToken))
                 <div class="rounded-3xl border border-primary/20 bg-primary/5 p-5">
                     <p class="text-sm font-medium text-primary">
                         Reservasi berhasil dibuat. Jika ingin menyelesaikan pembayaran online sekarang, lanjutkan lewat tombol di bawah.
                     </p>
-                    <a href="{{ session('payment_redirect_url') }}" target="_blank" rel="noopener noreferrer"
+                    <button type="button" data-midtrans-snap-button data-snap-token="{{ $sessionPaymentSnapToken }}"
+                        data-order-id="{{ $sessionPaymentOrderId }}"
                         class="mt-4 inline-flex rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-primary/90">
                         {{ session('payment_redirect_label') ?? 'Lanjutkan Pembayaran' }}
-                    </a>
+                    </button>
                 </div>
             @endif
 
@@ -64,11 +77,12 @@
                                 {{ $nextReservation->cafeTable?->name ?? 'Meja akan ditentukan sistem' }}
                             </p>
                         </div>
-                        @if ($nextPayment?->snap_redirect_url)
-                            <a href="{{ $nextPayment->snap_redirect_url }}" target="_blank" rel="noopener noreferrer"
+                        @if ($nextPayment?->snap_token)
+                            <button type="button" data-midtrans-snap-button data-snap-token="{{ $nextPayment->snap_token }}"
+                                data-order-id="{{ $nextPayment->midtrans_order_id ?: $nextPayment->transaction_reference }}"
                                 class="inline-flex rounded-xl bg-white px-4 py-3 text-sm font-semibold text-primary transition hover:bg-white/90">
                                 Lanjut Pembayaran
-                            </a>
+                            </button>
                         @endif
                     </div>
                 </div>
@@ -148,11 +162,12 @@
                                     </div>
 
                                     <div class="flex flex-col gap-3 lg:w-56">
-                                        @if ($payment?->snap_redirect_url)
-                                            <a href="{{ $payment->snap_redirect_url }}" target="_blank" rel="noopener noreferrer"
+                                        @if ($payment?->snap_token)
+                                            <button type="button" data-midtrans-snap-button data-snap-token="{{ $payment->snap_token }}"
+                                                data-order-id="{{ $payment->midtrans_order_id ?: $payment->transaction_reference }}"
                                                 class="inline-flex justify-center rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-primary/90">
                                                 Lanjut Pembayaran
-                                            </a>
+                                            </button>
                                         @endif
 
                                         <a href="{{ route('booking.show', ['slug' => $reservation->package_slug ?? 'coffee-date-corner']) }}"
@@ -178,6 +193,52 @@
                 @endif
             </div>
         </section>
+
+        @if ($hasSnapPayment && filled($midtransClientKey))
+            @push('scripts')
+                <script src="{{ $midtransSnapJsUrl }}" data-client-key="{{ $midtransClientKey }}"></script>
+                <script>
+                    window.addEventListener('load', function() {
+                        const profileUrl = @js(route('customer.profile'));
+
+                        if (!window.snap) {
+                            return;
+                        }
+
+                        const buildProfileUrl = (orderId) => {
+                            const url = new URL(profileUrl, window.location.origin);
+
+                            if (orderId) {
+                                url.searchParams.set('midtrans_order_id', orderId);
+                            }
+
+                            return url.toString();
+                        };
+
+                        const openSnapPayment = (token, fallbackOrderId) => {
+                            if (!token) {
+                                return;
+                            }
+
+                            window.snap.pay(token, {
+                                onSuccess: function(result) {
+                                    window.location.href = buildProfileUrl(result?.order_id || fallbackOrderId);
+                                },
+                                onPending: function() {},
+                                onError: function() {},
+                                onClose: function() {},
+                            });
+                        };
+
+                        document.querySelectorAll('[data-midtrans-snap-button]').forEach(function(button) {
+                            button.addEventListener('click', function() {
+                                openSnapPayment(button.dataset.snapToken, button.dataset.orderId);
+                            });
+                        });
+                    });
+                </script>
+            @endpush
+        @endif
 
         @include('guest.components.site-footer')
     </div>

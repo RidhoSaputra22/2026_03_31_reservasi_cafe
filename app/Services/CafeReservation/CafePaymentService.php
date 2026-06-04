@@ -102,28 +102,42 @@ class CafePaymentService
             $payment = Payment::query()
                 ->where('midtrans_order_id', $orderId)
                 ->orWhere('transaction_reference', $orderId)
-                ->firstOrFail();
-            $status = $this->midtransService->mapTransactionStatus($payload);
-            $paidAt = $this->resolvePaidAt(
-                $status,
-                Arr::get($payload, 'settlement_time') ?: Arr::get($payload, 'transaction_time'),
-            );
+                ->first();
 
-            $payment->forceFill([
-                'status' => $status,
-                'paid_at' => $paidAt,
-                'verified_at' => $status === PaymentStatus::Paid ? ($payment->verified_at ?? now()) : null,
-                'midtrans_status' => Arr::get($payload, 'transaction_status'),
-                'midtrans_payload' => $payload,
-            ])->save();
-
-            $reservation = $payment->reservation;
-
-            if ($reservation instanceof Reservation) {
-                $this->applyReservationPaymentStatus($reservation, $status, (float) $payment->amount);
+            if (! $payment instanceof Payment) {
+                throw new RuntimeException('Pembayaran Midtrans tidak ditemukan.');
             }
 
-            return $payment->fresh();
+            return $this->syncPaymentFromMidtransPayload($payment, $payload);
+        });
+    }
+
+    public function syncPaymentFromMidtransOrderId(string $orderId, ?int $userId = null): Payment
+    {
+        $orderId = trim($orderId);
+
+        if ($orderId === '') {
+            throw new RuntimeException('Order ID Midtrans tidak boleh kosong.');
+        }
+
+        return DB::transaction(function () use ($orderId, $userId): Payment {
+            $payment = Payment::query()
+                ->with('reservation')
+                ->where('midtrans_order_id', $orderId)
+                ->orWhere('transaction_reference', $orderId)
+                ->first();
+
+            if (! $payment instanceof Payment) {
+                throw new RuntimeException('Pembayaran Midtrans tidak ditemukan.');
+            }
+
+            if ($userId !== null && (int) $payment->reservation?->user_id !== $userId) {
+                throw new RuntimeException('Pembayaran ini tidak terhubung ke akun pelanggan saat ini.');
+            }
+
+            $payload = $this->midtransService->getTransactionStatus($orderId);
+
+            return $this->syncPaymentFromMidtransPayload($payment, $payload);
         });
     }
 
@@ -141,6 +155,32 @@ class CafePaymentService
             'midtrans_status' => $response['transaction_status'] ?? PaymentStatus::Pending->value,
             'midtrans_payload' => $response,
         ])->save();
+    }
+
+    protected function syncPaymentFromMidtransPayload(Payment $payment, array $payload): Payment
+    {
+        $status = $this->midtransService->mapTransactionStatus($payload);
+        $paidAt = $this->resolvePaidAt(
+            $status,
+            Arr::get($payload, 'settlement_time') ?: Arr::get($payload, 'transaction_time'),
+        );
+
+        $payment->forceFill([
+            'status' => $status,
+            'paid_at' => $paidAt,
+            'verified_at' => $status === PaymentStatus::Paid ? ($payment->verified_at ?? now()) : null,
+            'midtrans_order_id' => $payment->midtrans_order_id ?: Arr::get($payload, 'order_id'),
+            'midtrans_status' => Arr::get($payload, 'transaction_status'),
+            'midtrans_payload' => $payload,
+        ])->save();
+
+        $reservation = $payment->reservation;
+
+        if ($reservation instanceof Reservation) {
+            $this->applyReservationPaymentStatus($reservation, $status, (float) $payment->amount);
+        }
+
+        return $payment->fresh();
     }
 
     protected function shouldUseMidtrans(array $paymentData, PaymentMethod $method): bool

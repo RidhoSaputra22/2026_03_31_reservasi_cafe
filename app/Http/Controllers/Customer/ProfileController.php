@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers\Customer;
 
+use App\Enums\PaymentStatus;
 use App\Enums\ReservationStatus;
 use App\Http\Controllers\Controller;
 use App\Models\CafeProfile;
 use App\Models\Reservation;
+use App\Services\CafeReservation\CafePaymentService;
 use App\Services\CafeReservation\CafeReservationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -16,12 +18,35 @@ use RuntimeException;
 
 class ProfileController extends Controller
 {
-    public function show(Request $request): View|RedirectResponse
+    public function show(Request $request, CafePaymentService $paymentService): View|RedirectResponse
     {
         $user = $request->user();
 
         if ($user->isAdmin() || $user->isStaff()) {
             return redirect()->route('dashboard');
+        }
+
+        $midtransOrderId = trim($request->string('midtrans_order_id')->toString());
+
+        if ($midtransOrderId !== '') {
+            try {
+                $payment = $paymentService->syncPaymentFromMidtransOrderId($midtransOrderId, $user->id);
+            } catch (RuntimeException $exception) {
+                return redirect()->route('customer.profile')->with('error', $exception->getMessage());
+            }
+
+            [$flashType, $flashMessage] = match ($payment->status) {
+                PaymentStatus::Paid => ['success', 'Pembayaran berhasil dikonfirmasi. Reservasimu sudah masuk ke akun profil.'],
+                PaymentStatus::AwaitingVerification => ['info', 'Pembayaran sudah diterima dan sedang menunggu verifikasi.'],
+                PaymentStatus::Failed => ['error', 'Pembayaran belum berhasil. Silakan coba lagi dari halaman profil.'],
+                PaymentStatus::Refunded => ['warning', 'Pembayaran ini telah direfund.'],
+                default => ['info', 'Pembayaran masih diproses Midtrans. Kamu bisa melanjutkan atau mengeceknya dari halaman profil.'],
+            };
+
+            return redirect()
+                ->route('customer.profile')
+                ->with($flashType, $flashMessage)
+                ->with('highlight_reservation_id', $payment->reservation_id);
         }
 
         $activeStatuses = [
