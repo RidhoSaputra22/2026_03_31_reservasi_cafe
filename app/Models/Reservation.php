@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\ReservationStatus;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -104,8 +105,32 @@ class Reservation extends Model
         return $this->hasOne(Payment::class)->latestOfMany();
     }
 
+    public function scopeVisibleToCustomer(Builder $query): Builder
+    {
+        return $query->where(function (Builder $query): void {
+            $query
+                ->where('status', '!=', ReservationStatus::Cancelled->value)
+                ->orWhereNull('cancellation_reason')
+                ->orWhere('cancellation_reason', '!=', static::expiredPaymentCancellationReason());
+        });
+    }
+
     public function pendingPaymentExpiresAt(): ?CarbonInterface
     {
         return $this->latestPayment?->pendingExpiresAt();
+    }
+
+    public function wasCancelledBecausePaymentExpired(): bool
+    {
+        return $this->status === ReservationStatus::Cancelled
+            && $this->cancellation_reason === static::expiredPaymentCancellationReason();
+    }
+
+    public static function expiredPaymentCancellationReason(): string
+    {
+        return (string) config(
+            'reservations.expired_payment_cancellation_reason',
+            'Reservasi dibatalkan otomatis karena batas waktu pembayaran habis.',
+        );
     }
 }

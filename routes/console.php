@@ -11,9 +11,11 @@ Artisan::command('inspire', function () {
 
 Artisan::command('reservations:expire-pending-payments', function (): void {
     $expiredReservations = app(CafeReservationService::class)->expireTimedOutPendingReservations();
+    $deletedReservations = app(CafeReservationService::class)->purgeExpiredPaymentReservations();
 
     $this->info("Reservasi kadaluarsa yang dibatalkan: {$expiredReservations}");
-})->purpose('Batalkan otomatis reservasi dengan pembayaran pending yang melewati batas waktu');
+    $this->info("Data reservasi/pembayaran expired yang dihapus: {$deletedReservations}");
+})->purpose('Batalkan lalu hapus otomatis reservasi dengan pembayaran pending yang melewati batas waktu');
 
 Schedule::command('reservations:expire-pending-payments')
     ->everyMinute()

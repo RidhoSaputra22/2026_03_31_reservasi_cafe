@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 use RuntimeException;
+use Throwable;
 
 class CafeReservationService
 {
@@ -254,6 +255,37 @@ class CafeReservationService
         return $expiredReservations;
     }
 
+    public function purgeExpiredPaymentReservations(?int $userId = null): int
+    {
+        $deletedReservations = 0;
+
+        $query = Reservation::query()
+            ->with('cafeTable')
+            ->where('status', ReservationStatus::Cancelled->value)
+            ->where('cancellation_reason', $this->expiredPaymentCancellationReason());
+
+        if ($userId !== null) {
+            $query->where('user_id', $userId);
+        }
+
+        $query->chunkById(50, function ($reservations) use (&$deletedReservations): void {
+            foreach ($reservations as $reservation) {
+                try {
+                    if ($this->purgeExpiredPaymentReservation($reservation)) {
+                        $deletedReservations++;
+                    }
+                } catch (Throwable $exception) {
+                    Log::warning('Failed to purge expired reservation payment data.', [
+                        'reservation_id' => $reservation->id,
+                        'error' => $exception->getMessage(),
+                    ]);
+                }
+            }
+        });
+
+        return $deletedReservations;
+    }
+
     protected function resolveSlot(
         CarbonInterface|string $reservationDate,
         string $startTime,
@@ -452,12 +484,30 @@ class CafeReservationService
         ]);
     }
 
+    protected function purgeExpiredPaymentReservation(Reservation $reservation): bool
+    {
+        $reservation = $reservation->fresh(['cafeTable']);
+
+        if (! $reservation instanceof Reservation || ! $reservation->wasCancelledBecausePaymentExpired()) {
+            return false;
+        }
+
+        $table = $reservation->cafeTable;
+
+        DB::transaction(function () use ($reservation): void {
+            $reservation->delete();
+        });
+
+        if ($table instanceof CafeTable) {
+            $this->refreshTableStatus($table->fresh());
+        }
+
+        return true;
+    }
+
     protected function expiredPaymentCancellationReason(): string
     {
-        return (string) config(
-            'reservations.expired_payment_cancellation_reason',
-            'Reservasi dibatalkan otomatis karena batas waktu pembayaran habis.',
-        );
+        return Reservation::expiredPaymentCancellationReason();
     }
 
     protected function normalizeDate(CarbonInterface|string $reservationDate): CarbonInterface

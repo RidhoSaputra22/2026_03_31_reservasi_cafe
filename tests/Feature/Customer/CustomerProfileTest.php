@@ -139,4 +139,58 @@ class CustomerProfileTest extends TestCase
             ->assertSee('Selesaikan pembayaran sebelum')
             ->assertSee('Lanjut Pembayaran');
     }
+
+    public function test_customer_profile_hides_reservations_cancelled_due_to_expired_payment(): void
+    {
+        config([
+            'reservations.expired_payment_cancellation_reason' => 'Reservasi dibatalkan otomatis karena pembayaran melewati batas waktu.',
+        ]);
+
+        CafeProfile::factory()->create();
+
+        $customer = User::factory()->customer()->create([
+            'name' => 'Raka Pelanggan',
+            'email' => 'raka@example.test',
+        ]);
+
+        $table = CafeTable::factory()->create([
+            'name' => 'Meja A4',
+            'capacity' => 2,
+        ]);
+
+        $slot = ReservationSlot::factory()->create([
+            'day_of_week' => now()->addDay()->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '11:00:00',
+        ]);
+
+        $reservation = Reservation::factory()
+            ->cancelled()
+            ->for($customer)
+            ->for($table, 'cafeTable')
+            ->for($slot, 'reservationSlot')
+            ->create([
+                'reservation_code' => 'RSV-EXPIRED-HIDDEN',
+                'customer_name' => 'Raka Pelanggan',
+                'reservation_date' => now()->addDay()->toDateString(),
+                'start_time' => '09:00:00',
+                'end_time' => '10:00:00',
+                'guest_count' => 2,
+                'amount_due' => 50000,
+                'cancellation_reason' => Reservation::expiredPaymentCancellationReason(),
+            ]);
+
+        Payment::factory()
+            ->failed()
+            ->for($reservation)
+            ->create([
+                'amount' => 50000,
+            ]);
+
+        $this->actingAs($customer)
+            ->get(route('customer.profile'))
+            ->assertOk()
+            ->assertDontSee('RSV-EXPIRED-HIDDEN')
+            ->assertSee('Belum ada reservasi.');
+    }
 }

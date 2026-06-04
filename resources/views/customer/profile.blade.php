@@ -188,6 +188,7 @@
                                                 <dt class="font-semibold text-primary">Nominal</dt>
                                                 <dd>Rp{{ number_format((float) $reservation->amount_due, 0, ',', '.') }}</dd>
                                             </div>
+
                                         </dl>
 
                                         @if ($reservation->notes)

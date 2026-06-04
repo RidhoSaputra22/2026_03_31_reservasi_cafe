@@ -61,7 +61,7 @@ class CafeReservationServiceTest extends TestCase
             'guest_count' => 3,
             'notes' => 'Meeting kecil.',
             'payment' => [
-                'method' => PaymentMethod::Qris,
+                'method' => PaymentMethod::Cash,
             ],
         ]);
 
@@ -79,7 +79,7 @@ class CafeReservationServiceTest extends TestCase
         $this->assertNotNull($payment);
         $this->assertSame(PaymentType::DownPayment, $payment->type);
         $this->assertSame(PaymentStatus::Pending, $payment->status);
-        $this->assertSame(PaymentMethod::Qris, $payment->method);
+        $this->assertSame(PaymentMethod::Cash, $payment->method);
         $this->assertSame('50000.00', $payment->amount);
         $this->assertSame(TableStatus::Reserved, $result['table']->status);
         $this->assertCount(2, $result['notifications'][0]['admins']);
@@ -435,6 +435,133 @@ class CafeReservationServiceTest extends TestCase
         );
         $this->assertNotNull($reservation->cancelled_at);
         $this->assertSame(PaymentStatus::Failed, $reservation->latestPayment->status);
+        $this->assertSame(TableStatus::Available, $table->fresh()->status);
+    }
+
+    public function test_it_auto_cancels_expired_midtrans_reservations_when_midtrans_reports_missing_transaction(): void
+    {
+        config([
+            'services.midtrans.server_key' => 'SB-Mid-server-test',
+            'services.midtrans.is_production' => false,
+            'services.midtrans.enabled_payments' => ['qris'],
+            'reservations.pending_payment_timeout_minutes' => 60,
+            'reservations.expired_payment_cancellation_reason' => 'Reservasi dibatalkan otomatis karena pembayaran melewati batas waktu.',
+        ]);
+
+        Http::fake([
+            'https://app.sandbox.midtrans.com/snap/v1/transactions' => Http::response([
+                'token' => 'snap-token-expired',
+                'redirect_url' => 'https://app.sandbox.midtrans.com/snap/v2/vtweb/snap-token-expired',
+            ], 201),
+            'https://api.sandbox.midtrans.com/v2/*/status' => Http::response([
+                'status_code' => '404',
+                'status_message' => "Transaction doesn't exist.",
+            ], 200),
+        ]);
+
+        CafeProfile::factory()->create([
+            'down_payment_amount' => 50000,
+        ]);
+
+        User::factory()->admin()->create();
+        $customer = User::factory()->customer()->create();
+
+        $table = CafeTable::factory()->create([
+            'code' => 'A2-MT',
+            'capacity' => 4,
+        ]);
+
+        $date = Carbon::create(2026, 5, 28);
+        $this->createSlot($date, '15:00:00', '17:00:00', 'Afternoon');
+
+        $created = app(CafeReservationService::class)->createReservation([
+            'user_id' => $customer->id,
+            'customer_name' => $customer->name,
+            'customer_phone' => $customer->phone_number,
+            'reservation_date' => $date->toDateString(),
+            'start_time' => '15:00',
+            'duration_hours' => 2,
+            'guest_count' => 2,
+            'cafe_table_id' => $table->id,
+            'payment' => [
+                'method' => PaymentMethod::Qris,
+            ],
+        ]);
+
+        $payment = $created['payment'];
+
+        $payment->forceFill([
+            'created_at' => now()->subMinutes(61),
+            'updated_at' => now()->subMinutes(61),
+        ])->save();
+
+        $expiredReservations = app(CafeReservationService::class)->expireTimedOutPendingReservations();
+
+        $reservation = $created['reservation']->fresh(['latestPayment']);
+
+        $this->assertSame(1, $expiredReservations);
+        $this->assertSame(ReservationStatus::Cancelled, $reservation->status);
+        $this->assertSame(PaymentStatus::Failed, $reservation->latestPayment->status);
+        $this->assertSame('failure', $reservation->latestPayment->midtrans_status);
+        $this->assertSame(TableStatus::Available, $table->fresh()->status);
+    }
+
+    public function test_it_purges_expired_pending_payment_reservation_data(): void
+    {
+        config([
+            'reservations.pending_payment_timeout_minutes' => 60,
+            'reservations.expired_payment_cancellation_reason' => 'Reservasi dibatalkan otomatis karena pembayaran melewati batas waktu.',
+        ]);
+
+        CafeProfile::factory()->create([
+            'down_payment_amount' => 50000,
+        ]);
+
+        $customer = User::factory()->customer()->create();
+
+        $table = CafeTable::factory()->create([
+            'code' => 'A3',
+            'capacity' => 4,
+        ]);
+
+        $date = Carbon::create(2026, 5, 29);
+        $this->createSlot($date, '15:00:00', '17:00:00', 'Afternoon');
+
+        $created = app(CafeReservationService::class)->createReservation([
+            'user_id' => $customer->id,
+            'customer_name' => $customer->name,
+            'customer_phone' => $customer->phone_number,
+            'reservation_date' => $date->toDateString(),
+            'start_time' => '15:00',
+            'duration_hours' => 2,
+            'guest_count' => 2,
+            'cafe_table_id' => $table->id,
+            'payment' => [
+                'method' => PaymentMethod::Cash,
+            ],
+        ]);
+
+        $payment = $created['payment'];
+
+        $payment->forceFill([
+            'created_at' => now()->subMinutes(61),
+            'updated_at' => now()->subMinutes(61),
+        ])->save();
+
+        app(CafeReservationService::class)->expireTimedOutPendingReservations();
+
+        $reservationId = $created['reservation']->id;
+        $paymentId = $payment->id;
+
+        $deletedReservations = app(CafeReservationService::class)->purgeExpiredPaymentReservations();
+
+        $this->assertSame(1, $deletedReservations);
+        $this->assertDatabaseMissing('reservations', [
+            'id' => $reservationId,
+        ]);
+        $this->assertDatabaseMissing('payments', [
+            'id' => $paymentId,
+        ]);
         $this->assertSame(TableStatus::Available, $table->fresh()->status);
     }
 

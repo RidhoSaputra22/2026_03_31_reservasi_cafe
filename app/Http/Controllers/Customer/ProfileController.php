@@ -65,6 +65,7 @@ class ProfileController extends Controller
         $upcomingQuery = $this->upcomingReservationsQuery($user->reservations(), $activeStatuses);
 
         $reservations = $user->reservations()
+            ->visibleToCustomer()
             ->with(['cafeTable', 'reservationSlot', 'latestPayment'])
             ->orderByDesc('reservation_date')
             ->orderByDesc('start_time')
@@ -77,12 +78,14 @@ class ProfileController extends Controller
             ->get();
 
         $stats = [
-            'total' => $user->reservations()->count(),
+            'total' => $user->reservations()->visibleToCustomer()->count(),
             'upcoming' => (clone $upcomingQuery)->count(),
             'completed' => $user->reservations()
+                ->visibleToCustomer()
                 ->where('status', ReservationStatus::Completed->value)
                 ->count(),
             'needs_action' => $user->reservations()
+                ->visibleToCustomer()
                 ->whereIn('status', [
                     ReservationStatus::PendingPayment->value,
                     ReservationStatus::AwaitingConfirmation->value,
@@ -131,6 +134,7 @@ class ProfileController extends Controller
         $currentTime = now()->format('H:i:s');
 
         return $query
+            ->visibleToCustomer()
             ->whereIn('status', $activeStatuses)
             ->where(function (Builder $query) use ($currentTime, $today): void {
                 $query

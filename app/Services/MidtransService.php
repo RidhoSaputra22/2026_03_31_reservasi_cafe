@@ -57,7 +57,7 @@ class MidtransService
             throw new RuntimeException('Gagal mengambil status transaksi Midtrans: '.$this->errorMessage($response->json(), $response->body()));
         }
 
-        return $response->json() ?? [];
+        return $this->normalizeTransactionPayload($response->json() ?? []);
     }
 
     /**
@@ -73,7 +73,7 @@ class MidtransService
             throw new RuntimeException('Gagal membatalkan transaksi Midtrans: '.$this->errorMessage($response->json(), $response->body()));
         }
 
-        return $response->json() ?? [];
+        return $this->normalizeTransactionPayload($response->json() ?? []);
     }
 
     /**
@@ -89,7 +89,7 @@ class MidtransService
             throw new RuntimeException('Gagal mengakhiri transaksi Midtrans: '.$this->errorMessage($response->json(), $response->body()));
         }
 
-        return $response->json() ?? [];
+        return $this->normalizeTransactionPayload($response->json() ?? []);
     }
 
     public function mapTransactionStatus(array $payload): PaymentStatus
@@ -312,6 +312,23 @@ class MidtransService
     protected function filledArray(array $values): array
     {
         return array_filter($values, fn (mixed $value): bool => filled($value));
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    protected function normalizeTransactionPayload(array $payload): array
+    {
+        $transactionStatus = trim((string) Arr::get($payload, 'transaction_status', ''));
+        $statusCode = trim((string) Arr::get($payload, 'status_code', ''));
+        $statusMessage = Str::lower(trim((string) Arr::get($payload, 'status_message', '')));
+
+        if ($transactionStatus === '' && $statusCode === '404' && Str::contains($statusMessage, "doesn't exist")) {
+            $payload['transaction_status'] = 'failure';
+        }
+
+        return $payload;
     }
 
     protected function errorMessage(mixed $json, string $body): string
