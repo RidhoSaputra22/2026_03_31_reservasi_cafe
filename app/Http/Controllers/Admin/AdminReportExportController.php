@@ -41,7 +41,7 @@ class AdminReportExportController extends Controller
         $summaryStats = [
             ['label' => 'Total Reservasi', 'value' => number_format($reservations->count(), 0, ',', '.')],
             ['label' => 'Total Tamu', 'value' => number_format((int) $reservations->sum('guest_count'), 0, ',', '.')],
-            ['label' => 'Estimasi DP', 'value' => $this->rupiah($reservations->sum('amount_due'))],
+            ['label' => 'Total Sisa Tagihan', 'value' => $this->rupiah($reservations->sum('amount_due'))],
             [
                 'label' => 'Reservasi Selesai',
                 'value' => number_format($reservations->filter(

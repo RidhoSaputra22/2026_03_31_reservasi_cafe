@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Enums\PaymentStatus;
+use App\Enums\PaymentType;
 use App\Enums\ReservationStatus;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -103,6 +106,100 @@ class Reservation extends Model
     public function latestPayment(): HasOne
     {
         return $this->hasOne(Payment::class)->latestOfMany();
+    }
+
+    public function paymentRecords(): Collection
+    {
+        $payments = $this->relationLoaded('payments')
+            ? $this->payments
+            : $this->payments()->orderBy('created_at')->orderBy('id')->get();
+
+        return $payments
+            ->sortBy([
+                ['created_at', 'asc'],
+                ['id', 'asc'],
+            ])
+            ->values();
+    }
+
+    public function totalPaidAmount(): float
+    {
+        return (float) $this->paymentRecords()
+            ->filter(fn (Payment $payment): bool => $payment->status === PaymentStatus::Paid)
+            ->sum(fn (Payment $payment): float => (float) $payment->amount);
+    }
+
+    public function remainingAmount(): float
+    {
+        $totalPrice = (float) $this->total_price;
+
+        if ($totalPrice > 0) {
+            return max(0, $totalPrice - $this->totalPaidAmount());
+        }
+
+        $latestPayment = $this->paymentRecords()->last();
+
+        if (! $latestPayment instanceof Payment) {
+            return 0;
+        }
+
+        return $latestPayment->status === PaymentStatus::Paid
+            ? 0
+            : (float) $latestPayment->amount;
+    }
+
+    public function latestPendingPayment(): ?Payment
+    {
+        return $this->paymentRecords()
+            ->reverse()
+            ->first(fn (Payment $payment): bool => $payment->status === PaymentStatus::Pending);
+    }
+
+    public function activePendingPayment(): ?Payment
+    {
+        return $this->paymentRecords()
+            ->reverse()
+            ->first(fn (Payment $payment): bool => $payment->hasActiveSnapToken());
+    }
+
+    public function latestSettlementPayment(): ?Payment
+    {
+        return $this->paymentRecords()
+            ->reverse()
+            ->first(fn (Payment $payment): bool => $payment->type === PaymentType::FullPayment);
+    }
+
+    public function latestOpenSettlementPayment(): ?Payment
+    {
+        return $this->paymentRecords()
+            ->reverse()
+            ->first(function (Payment $payment): bool {
+                if ($payment->type !== PaymentType::FullPayment) {
+                    return false;
+                }
+
+                if ($payment->status === PaymentStatus::AwaitingVerification) {
+                    return true;
+                }
+
+                return $payment->status === PaymentStatus::Pending
+                    && ! $payment->isPendingExpired();
+            });
+    }
+
+    public function latestPaidDownPayment(): ?Payment
+    {
+        return $this->paymentRecords()
+            ->reverse()
+            ->first(fn (Payment $payment): bool => $payment->type === PaymentType::DownPayment
+                && $payment->status === PaymentStatus::Paid);
+    }
+
+    public function canCreateSettlementPayment(): bool
+    {
+        return $this->totalPaidAmount() > 0
+            && $this->remainingAmount() > 0
+            && ! ($this->latestOpenSettlementPayment() instanceof Payment);
     }
 
     public function scopeVisibleToCustomer(Builder $query): Builder

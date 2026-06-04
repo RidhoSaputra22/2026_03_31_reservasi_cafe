@@ -65,6 +65,7 @@ Route::prefix('admin')->middleware('admin.access')->controller(AdminPanelControl
     Route::delete('/slot-reservasi/{reservationSlot}', 'destroySlot')->name('admin.slots.destroy');
 
     Route::get('/pembayaran', 'payments')->name('admin.payments.index');
+    Route::post('/pembayaran/{reservation}/sisa', 'createSettlementPayment')->name('admin.payments.settlement');
     Route::patch('/pembayaran/{payment}/status', 'updatePaymentStatus')->name('admin.payments.status');
     Route::delete('/pembayaran/{payment}', 'destroyPayment')->name('admin.payments.destroy');
 

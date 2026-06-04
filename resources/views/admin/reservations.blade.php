@@ -66,7 +66,7 @@
                     'reservation_date' => 'Tanggal',
                     'start_time' => 'Jam',
                     'guest_count' => 'Tamu',
-                    'amount_due' => 'DP',
+                    'amount_due' => 'Sisa Tagihan',
                 ]"
                 :formats="[
                     'reservation_date' => 'date',

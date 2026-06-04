@@ -17,6 +17,7 @@ use App\Models\Reservation;
 use App\Models\ReservationPackage;
 use App\Models\ReservationSlot;
 use App\Models\User;
+use App\Services\CafeReservation\CafePaymentService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -25,6 +26,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use RuntimeException;
 
 class AdminPanelController extends Controller
 {
@@ -433,7 +435,7 @@ class AdminPanelController extends Controller
 
     public function payments(Request $request): View
     {
-        $query = Payment::query()->with(['reservation', 'verifiedBy']);
+        $query = Payment::query()->with(['reservation.payments', 'verifiedBy', 'parentPayment']);
         $this->applySearch($query, $request->string('search')->toString(), ['payment_code', 'transaction_reference', 'midtrans_order_id', 'notes']);
         $query->when($request->filled('status'), fn (Builder $builder) => $builder->where('status', $request->string('status')));
         $this->applySort($query, ['payment_code', 'amount', 'method', 'status', 'paid_at', 'verified_at'], 'created_at', 'desc');
@@ -443,6 +445,7 @@ class AdminPanelController extends Controller
             'statusOptions' => $this->enumOptions(PaymentStatus::cases()),
             'methodOptions' => $this->enumOptions(PaymentMethod::cases()),
             'typeOptions' => $this->enumOptions(PaymentType::cases()),
+            'midtransConfigured' => app(CafePaymentService::class)->isMidtransConfigured(),
             'dateFieldOptions' => [
                 ['value' => 'paid_at', 'label' => 'Tanggal dibayar'],
                 ['value' => 'verified_at', 'label' => 'Tanggal diverifikasi'],
@@ -451,7 +454,40 @@ class AdminPanelController extends Controller
         ]);
     }
 
-    public function updatePaymentStatus(Request $request, Payment $payment): RedirectResponse
+    public function createSettlementPayment(
+        Request $request,
+        Reservation $reservation,
+        CafePaymentService $paymentService,
+    ): RedirectResponse {
+        $validated = $request->validate([
+            'method' => ['nullable', Rule::in([
+                PaymentMethod::BankTransfer->value,
+                PaymentMethod::Qris->value,
+                PaymentMethod::Card->value,
+            ])],
+        ]);
+
+        try {
+            $payment = $paymentService->createSettlementPaymentForReservation($reservation, [
+                'method' => $validated['method'] ?? PaymentMethod::Qris->value,
+            ]);
+        } catch (RuntimeException $exception) {
+            return back()->with('warning', $exception->getMessage());
+        }
+
+        return back()->with(
+            'success',
+            'Pembayaran sisa berhasil dibuat via Midtrans sebesar Rp '
+                .number_format((float) $payment->amount, 0, ',', '.')
+                .'. Pelanggan bisa melanjutkannya dari halaman akun.',
+        );
+    }
+
+    public function updatePaymentStatus(
+        Request $request,
+        Payment $payment,
+        CafePaymentService $paymentService,
+    ): RedirectResponse
     {
         $validated = $request->validate([
             'status' => ['required', Rule::in($this->enumValues(PaymentStatus::cases()))],
@@ -471,15 +507,7 @@ class AdminPanelController extends Controller
         $reservation = $payment->reservation;
 
         if ($reservation instanceof Reservation) {
-            $reservation->forceFill([
-                'status' => match ($status) {
-                    PaymentStatus::Paid => ReservationStatus::Confirmed,
-                    PaymentStatus::AwaitingVerification => ReservationStatus::AwaitingConfirmation,
-                    PaymentStatus::Failed, PaymentStatus::Pending => ReservationStatus::PendingPayment,
-                    PaymentStatus::Refunded => $reservation->status,
-                },
-                'confirmed_at' => $status === PaymentStatus::Paid ? ($reservation->confirmed_at ?? now()) : $reservation->confirmed_at,
-            ])->save();
+            $paymentService->applyReservationPaymentStatus($reservation);
         }
 
         return back()->with('success', 'Status pembayaran berhasil diperbarui.');

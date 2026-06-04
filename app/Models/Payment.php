@@ -9,6 +9,7 @@ use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Payment extends Model
 {
@@ -17,6 +18,7 @@ class Payment extends Model
     protected $fillable = [
         'payment_code',
         'reservation_id',
+        'parent_payment_id',
         'type',
         'amount',
         'method',
@@ -52,9 +54,26 @@ class Payment extends Model
         return $this->belongsTo(Reservation::class);
     }
 
+    public function parentPayment(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_payment_id');
+    }
+
+    public function childPayments(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_payment_id');
+    }
+
     public function verifiedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'verified_by');
+    }
+
+    public function hasActiveSnapToken(): bool
+    {
+        return $this->status === PaymentStatus::Pending
+            && filled($this->snap_token)
+            && ! $this->isPendingExpired();
     }
 
     public function pendingExpiresAt(): ?CarbonInterface

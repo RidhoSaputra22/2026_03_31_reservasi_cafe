@@ -10,6 +10,12 @@
     $paymentTypeFilterOptions = collect([['value' => '', 'label' => 'Semua jenis']])
         ->concat($typeOptions)
         ->all();
+    $settlementReservations = collect($payments->items())
+        ->map(fn ($payment) => $payment->reservation)
+        ->filter()
+        ->unique('id')
+        ->filter(fn ($reservation) => $midtransConfigured && $reservation->canCreateSettlementPayment())
+        ->values();
 @endphp
 
 @section('header')
@@ -34,6 +40,11 @@
         <x-ui.card title="Antrian Verifikasi Pembayaran">
             <div class="grid gap-4 lg:grid-cols-2">
                 @forelse ($payments->getCollection()->take(4) as $payment)
+                    @php
+                        $reservation = $payment->reservation;
+                        $canCreateSettlement = $midtransConfigured
+                            && $reservation?->canCreateSettlementPayment();
+                    @endphp
                     <form method="POST" action="{{ route('admin.payments.status', $payment) }}" class="rounded-box border border-base-200 bg-base-100 p-4">
                         @csrf
                         @method('PATCH')
@@ -41,6 +52,15 @@
                             <div>
                                 <p class="font-bold">{{ $payment->payment_code }}</p>
                                 <p class="text-sm text-base-content/60">{{ $payment->reservation?->reservation_code ?? '-' }} · {{ $payment->method->label() }} · Rp {{ number_format((float) $payment->amount, 0, ',', '.') }}</p>
+                                @if ($payment->type === \App\Enums\PaymentType::FullPayment && $payment->parentPayment)
+                                    <p class="mt-1 text-xs text-base-content/60">
+                                        Terkait DP {{ $payment->parentPayment->payment_code }} -> SISA
+                                    </p>
+                                @elseif ($canCreateSettlement)
+                                    <p class="mt-1 text-xs text-base-content/60">
+                                        DP sudah berhasil. Pembayaran sisa bisa dibuat lewat Midtrans.
+                                    </p>
+                                @endif
                             </div>
                             <x-ui.badge type="warning" size="sm">{{ $payment->status->label() }}</x-ui.badge>
                         </div>
@@ -50,6 +70,22 @@
                         </div>
                         <x-ui.input name="notes" size="sm" placeholder="Catatan verifikasi" class="mt-3" />
                     </form>
+                    @if ($canCreateSettlement)
+                        <form method="POST" action="{{ route('admin.payments.settlement', $reservation) }}" class="-mt-1 rounded-box border border-dashed border-primary/20 bg-primary/5 p-4">
+                            @csrf
+                            <input type="hidden" name="method" value="{{ \App\Enums\PaymentMethod::Qris->value }}">
+                            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                    <p class="text-sm font-semibold text-primary">Buka Pembayaran Sisa</p>
+                                    <p class="text-xs text-base-content/70">
+                                        Buat transaksi Midtrans pelunasan sebesar
+                                        Rp {{ number_format((float) $reservation->remainingAmount(), 0, ',', '.') }}.
+                                    </p>
+                                </div>
+                                <x-ui.button type="primary" size="sm">Buat Sisa Midtrans</x-ui.button>
+                            </div>
+                        </form>
+                    @endif
                 @empty
                     <div class="rounded-box border border-dashed border-base-300 p-6 text-center text-base-content/60 lg:col-span-2">
                         Belum ada pembayaran pada filter ini.
@@ -57,6 +93,29 @@
                 @endforelse
             </div>
         </x-ui.card>
+
+        @if ($settlementReservations->isNotEmpty())
+            <x-ui.card title="Buka Pembayaran Sisa">
+                <div class="grid gap-4 lg:grid-cols-2">
+                    @foreach ($settlementReservations as $reservation)
+                        <form method="POST" action="{{ route('admin.payments.settlement', $reservation) }}" class="rounded-box border border-dashed border-primary/20 bg-primary/5 p-4">
+                            @csrf
+                            <input type="hidden" name="method" value="{{ \App\Enums\PaymentMethod::Qris->value }}">
+                            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                    <p class="font-semibold text-primary">{{ $reservation->reservation_code }}</p>
+                                    <p class="text-sm text-base-content/70">
+                                        DP terbayar Rp {{ number_format((float) $reservation->totalPaidAmount(), 0, ',', '.') }} ·
+                                        Sisa Rp {{ number_format((float) $reservation->remainingAmount(), 0, ',', '.') }}
+                                    </p>
+                                </div>
+                                <x-ui.button type="primary" size="sm">Buat Sisa Midtrans</x-ui.button>
+                            </div>
+                        </form>
+                    @endforeach
+                </div>
+            </x-ui.card>
+        @endif
 
         <x-ui.card>
             <x-ui.data-table

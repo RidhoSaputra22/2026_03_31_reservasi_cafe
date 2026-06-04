@@ -20,7 +20,7 @@
                     <th style="width: 16%;">Meja / Slot</th>
                     <th style="width: 7%;">Tamu</th>
                     <th style="width: 8%;">Status</th>
-                    <th style="width: 10%;">DP</th>
+                    <th style="width: 10%;">Sisa Tagihan</th>
                 </tr>
             </thead>
             <tbody>

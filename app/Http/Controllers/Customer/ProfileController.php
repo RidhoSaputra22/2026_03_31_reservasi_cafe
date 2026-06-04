@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Customer;
 
 use App\Enums\PaymentStatus;
+use App\Enums\PaymentType;
 use App\Enums\ReservationStatus;
 use App\Http\Controllers\Controller;
 use App\Models\CafeProfile;
@@ -39,12 +40,34 @@ class ProfileController extends Controller
                 return redirect()->route('customer.profile')->with('error', $exception->getMessage());
             }
 
+            $isSettlementPayment = $payment->type === PaymentType::FullPayment;
+
             [$flashType, $flashMessage] = match ($payment->status) {
-                PaymentStatus::Paid => ['success', 'Pembayaran berhasil dikonfirmasi. Reservasimu sudah masuk ke akun profil.'],
-                PaymentStatus::AwaitingVerification => ['info', 'Pembayaran sudah diterima dan sedang menunggu verifikasi.'],
-                PaymentStatus::Failed => ['error', 'Pembayaran belum berhasil. Silakan coba lagi dari halaman profil.'],
+                PaymentStatus::Paid => [
+                    'success',
+                    $isSettlementPayment
+                        ? 'Pembayaran sisa berhasil dikonfirmasi.'
+                        : 'Pembayaran berhasil dikonfirmasi. Reservasimu sudah masuk ke akun profil.',
+                ],
+                PaymentStatus::AwaitingVerification => [
+                    'info',
+                    $isSettlementPayment
+                        ? 'Pembayaran sisa sudah diterima dan sedang menunggu verifikasi.'
+                        : 'Pembayaran sudah diterima dan sedang menunggu verifikasi.',
+                ],
+                PaymentStatus::Failed => [
+                    'error',
+                    $isSettlementPayment
+                        ? 'Pembayaran sisa belum berhasil. Silakan tunggu link baru atau hubungi admin.'
+                        : 'Pembayaran belum berhasil. Silakan coba lagi dari halaman profil.',
+                ],
                 PaymentStatus::Refunded => ['warning', 'Pembayaran ini telah direfund.'],
-                default => ['info', 'Pembayaran masih diproses Midtrans. Kamu bisa melanjutkan atau mengeceknya dari halaman profil.'],
+                default => [
+                    'info',
+                    $isSettlementPayment
+                        ? 'Pembayaran sisa masih diproses Midtrans. Kamu bisa mengeceknya lagi dari halaman profil.'
+                        : 'Pembayaran masih diproses Midtrans. Kamu bisa melanjutkan atau mengeceknya dari halaman profil.',
+                ],
             };
 
             return redirect()
@@ -66,14 +89,14 @@ class ProfileController extends Controller
 
         $reservations = $user->reservations()
             ->visibleToCustomer()
-            ->with(['cafeTable', 'reservationSlot', 'latestPayment'])
+            ->with(['cafeTable', 'reservationSlot', 'latestPayment.parentPayment', 'payments.parentPayment'])
             ->orderByDesc('reservation_date')
             ->orderByDesc('start_time')
             ->limit(12)
             ->get();
 
         $upcomingReservations = (clone $upcomingQuery)
-            ->with(['cafeTable', 'reservationSlot', 'latestPayment'])
+            ->with(['cafeTable', 'reservationSlot', 'latestPayment.parentPayment', 'payments.parentPayment'])
             ->limit(3)
             ->get();
 
