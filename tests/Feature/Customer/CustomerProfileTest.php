@@ -81,4 +81,62 @@ class CustomerProfileTest extends TestCase
             ->get(route('customer.profile'))
             ->assertRedirect(route('dashboard'));
     }
+
+    public function test_customer_profile_shows_pending_payment_deadline(): void
+    {
+        config([
+            'reservations.pending_payment_timeout_minutes' => 60,
+        ]);
+
+        CafeProfile::factory()->create();
+
+        $customer = User::factory()->customer()->create([
+            'name' => 'Dina Pelanggan',
+            'email' => 'dina@example.test',
+        ]);
+
+        $table = CafeTable::factory()->create([
+            'name' => 'Meja A2',
+            'capacity' => 2,
+        ]);
+
+        $slot = ReservationSlot::factory()->create([
+            'day_of_week' => now()->addDay()->dayOfWeek,
+            'start_time' => '08:00:00',
+            'end_time' => '10:00:00',
+        ]);
+
+        $reservation = Reservation::factory()
+            ->pendingPayment()
+            ->for($customer)
+            ->for($table, 'cafeTable')
+            ->for($slot, 'reservationSlot')
+            ->create([
+                'reservation_code' => 'RSV-PENDING',
+                'customer_name' => 'Dina Pelanggan',
+                'reservation_date' => now()->addDay()->toDateString(),
+                'start_time' => '08:00:00',
+                'end_time' => '09:00:00',
+                'guest_count' => 2,
+                'amount_due' => 50000,
+            ]);
+
+        Payment::factory()
+            ->pending()
+            ->for($reservation)
+            ->create([
+                'amount' => 50000,
+                'snap_token' => 'snap-token-profile',
+                'midtrans_order_id' => 'ORDER-PROFILE-1',
+                'created_at' => now()->subMinutes(10),
+                'updated_at' => now()->subMinutes(10),
+            ]);
+
+        $this->actingAs($customer)
+            ->get(route('customer.profile'))
+            ->assertOk()
+            ->assertSee('RSV-PENDING')
+            ->assertSee('Selesaikan pembayaran sebelum')
+            ->assertSee('Lanjut Pembayaran');
+    }
 }

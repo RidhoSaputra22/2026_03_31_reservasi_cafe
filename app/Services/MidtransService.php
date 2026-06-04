@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\PaymentStatus;
 use App\Models\Payment;
+use Carbon\CarbonInterface;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Http;
@@ -70,6 +71,22 @@ class MidtransService
 
         if ($response->failed()) {
             throw new RuntimeException('Gagal membatalkan transaksi Midtrans: '.$this->errorMessage($response->json(), $response->body()));
+        }
+
+        return $response->json() ?? [];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function expireTransaction(string $orderId): array
+    {
+        $this->ensureConfigured();
+
+        $response = $this->http()->post($this->coreApiEndpoint('/v2/'.rawurlencode($orderId).'/expire'));
+
+        if ($response->failed()) {
+            throw new RuntimeException('Gagal mengakhiri transaksi Midtrans: '.$this->errorMessage($response->json(), $response->body()));
         }
 
         return $response->json() ?? [];
@@ -167,6 +184,14 @@ class MidtransService
             $payload['callbacks'] = $callbacks;
         }
 
+        if ($paymentExpiry = $this->paymentExpiryPayload($payment)) {
+            $payload['expiry'] = $paymentExpiry;
+            $payload['page_expiry'] = [
+                'duration' => $paymentExpiry['duration'],
+                'unit' => $paymentExpiry['unit'],
+            ];
+        }
+
         return array_replace_recursive($payload, Arr::get($options, 'payload', []));
     }
 
@@ -250,6 +275,24 @@ class MidtransService
             'unfinish' => config('services.midtrans.unfinish_url'),
             'error' => config('services.midtrans.error_url'),
         ]);
+    }
+
+    /**
+     * @return array{start_time: string, duration: int, unit: string}|array{}
+     */
+    protected function paymentExpiryPayload(Payment $payment): array
+    {
+        $duration = max(1, (int) config('reservations.pending_payment_timeout_minutes', 60));
+
+        $startTime = ($payment->created_at instanceof CarbonInterface ? $payment->created_at->copy() : now())
+            ->setTimezone('Asia/Jakarta')
+            ->format('Y-m-d H:i:s O');
+
+        return [
+            'start_time' => $startTime,
+            'duration' => $duration,
+            'unit' => 'minute',
+        ];
     }
 
     /**

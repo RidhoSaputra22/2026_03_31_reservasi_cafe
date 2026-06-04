@@ -9,6 +9,7 @@ use App\Models\ReservationPackage;
 use App\Models\ReservationSlot;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class GuestReservationFlowTest extends TestCase
@@ -128,6 +129,86 @@ class GuestReservationFlowTest extends TestCase
         ]);
 
         $this->assertDatabaseCount('payments', 1);
+    }
+
+    public function test_midtrans_booking_redirect_does_not_flash_success_before_payment_is_confirmed(): void
+    {
+        config([
+            'services.midtrans.server_key' => 'SB-Mid-server-test',
+            'services.midtrans.is_production' => false,
+            'services.midtrans.enabled_payments' => ['qris'],
+        ]);
+
+        Http::fake([
+            'https://app.sandbox.midtrans.com/snap/v1/transactions' => Http::response([
+                'token' => 'snap-token-booking',
+                'redirect_url' => 'https://app.sandbox.midtrans.com/snap/v2/vtweb/snap-token-booking',
+            ], 201),
+        ]);
+
+        CafeProfile::factory()->create([
+            'down_payment_amount' => 50000,
+        ]);
+
+        $customer = User::factory()->customer()->create([
+            'name' => 'Pelanggan Booking',
+            'phone_number' => '081234567890',
+        ]);
+
+        CafeTable::factory()->create([
+            'name' => 'Meja Midtrans',
+            'capacity' => 4,
+            'is_active' => true,
+        ]);
+
+        $package = ReservationPackage::query()->create([
+            'slug' => 'paket-midtrans-malam',
+            'aliases' => ['paket-midtrans'],
+            'name' => 'Paket Midtrans Malam',
+            'category' => 'Custom Night',
+            'image_path' => 'assets/images/hero.jpg',
+            'summary' => 'Paket untuk uji alur Midtrans.',
+            'description' => 'Paket custom untuk memastikan flash tidak tampil sebelum pembayaran sukses.',
+            'base_price' => 100000,
+            'included_hours' => 1,
+            'extra_hour_price' => 20000,
+            'facilities' => ['Area indoor'],
+            'notes' => ['Konfirmasi ulang di H-1'],
+            'is_featured' => false,
+            'is_active' => true,
+            'sort_order' => 100,
+        ]);
+
+        $reservationDate = now()->addDay()->toDateString();
+
+        ReservationSlot::factory()->create([
+            'day_of_week' => now()->addDay()->dayOfWeek,
+            'start_time' => '10:00:00',
+            'end_time' => '14:00:00',
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($customer)->post(route('booking.store', ['slug' => $package->slug]), [
+            'customer_name' => 'Pelanggan Booking',
+            'customer_phone' => '081234567890',
+            'reservation_date' => $reservationDate,
+            'start_time' => '10:30',
+            'duration_hours' => 3,
+            'guest_count' => 2,
+            'payment_method' => PaymentMethod::Qris->value,
+            'start_midtrans_payment' => 1,
+            'notes' => 'Butuh area nyaman',
+        ]);
+
+        $response->assertRedirect(route('booking.show', [
+            'slug' => $package->slug,
+            'date' => $reservationDate,
+            'time' => '10:30',
+            'duration_hours' => 3,
+            'guest_count' => 2,
+        ]));
+        $response->assertSessionMissing('success');
+        $response->assertSessionHas('payment_snap_token', 'snap-token-booking');
     }
 
     public function test_availability_endpoint_accepts_manual_start_time_and_returns_hourly_price_estimate(): void

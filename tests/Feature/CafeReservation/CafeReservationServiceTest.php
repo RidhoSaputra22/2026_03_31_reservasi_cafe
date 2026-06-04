@@ -150,7 +150,12 @@ class CafeReservationServiceTest extends TestCase
                 && $payload['transaction_details']['gross_amount'] === 50000
                 && $payload['enabled_payments'] === ['qris']
                 && $payload['customer_details']['email'] === $customer->email
-                && $payload['callbacks']['finish'] === 'https://example.test/midtrans/finish';
+                && $payload['callbacks']['finish'] === 'https://example.test/midtrans/finish'
+                && $payload['expiry']['duration'] === 60
+                && $payload['expiry']['unit'] === 'minute'
+                && str_ends_with($payload['expiry']['start_time'], '+0700')
+                && $payload['page_expiry']['duration'] === 60
+                && $payload['page_expiry']['unit'] === 'minute';
         });
     }
 
@@ -373,6 +378,63 @@ class CafeReservationServiceTest extends TestCase
         $this->assertSame('Pelanggan berhalangan hadir.', $reservation->cancellation_reason);
         $this->assertSame($admin->id, $reservation->cancelled_by);
         $this->assertNotNull($reservation->cancelled_at);
+        $this->assertSame(TableStatus::Available, $table->fresh()->status);
+    }
+
+    public function test_it_auto_cancels_expired_pending_payment_reservations(): void
+    {
+        config([
+            'reservations.pending_payment_timeout_minutes' => 60,
+            'reservations.expired_payment_cancellation_reason' => 'Reservasi dibatalkan otomatis karena pembayaran melewati batas waktu.',
+        ]);
+
+        CafeProfile::factory()->create([
+            'down_payment_amount' => 50000,
+        ]);
+
+        $customer = User::factory()->customer()->create();
+
+        $table = CafeTable::factory()->create([
+            'code' => 'A2',
+            'capacity' => 4,
+        ]);
+
+        $date = Carbon::create(2026, 5, 28);
+        $this->createSlot($date, '15:00:00', '17:00:00', 'Afternoon');
+
+        $created = app(CafeReservationService::class)->createReservation([
+            'user_id' => $customer->id,
+            'customer_name' => $customer->name,
+            'customer_phone' => $customer->phone_number,
+            'reservation_date' => $date->toDateString(),
+            'start_time' => '15:00',
+            'duration_hours' => 2,
+            'guest_count' => 2,
+            'cafe_table_id' => $table->id,
+            'payment' => [
+                'method' => PaymentMethod::Cash,
+            ],
+        ]);
+
+        $payment = $created['payment'];
+
+        $payment->forceFill([
+            'created_at' => now()->subMinutes(61),
+            'updated_at' => now()->subMinutes(61),
+        ])->save();
+
+        $expiredReservations = app(CafeReservationService::class)->expireTimedOutPendingReservations();
+
+        $reservation = $created['reservation']->fresh(['latestPayment']);
+
+        $this->assertSame(1, $expiredReservations);
+        $this->assertSame(ReservationStatus::Cancelled, $reservation->status);
+        $this->assertSame(
+            'Reservasi dibatalkan otomatis karena pembayaran melewati batas waktu.',
+            $reservation->cancellation_reason,
+        );
+        $this->assertNotNull($reservation->cancelled_at);
+        $this->assertSame(PaymentStatus::Failed, $reservation->latestPayment->status);
         $this->assertSame(TableStatus::Available, $table->fresh()->status);
     }
 

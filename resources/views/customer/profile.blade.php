@@ -6,8 +6,21 @@
     $sessionPaymentSnapToken = session('payment_snap_token');
     $sessionPaymentOrderId = session('payment_order_id');
     $hasSnapPayment = filled($sessionPaymentSnapToken)
-        || filled($nextReservation?->payments->first()?->snap_token)
-        || $reservations->contains(fn ($reservation) => filled($reservation->payments->first()?->snap_token));
+        || ($nextReservation?->status === \App\Enums\ReservationStatus::PendingPayment
+            && $nextReservation?->latestPayment?->status === \App\Enums\PaymentStatus::Pending
+            && filled($nextReservation?->latestPayment?->snap_token))
+        || $reservations->contains(fn ($reservation) => $reservation->status === \App\Enums\ReservationStatus::PendingPayment
+            && $reservation->latestPayment?->status === \App\Enums\PaymentStatus::Pending
+            && filled($reservation->latestPayment?->snap_token));
+    $hasPendingExpiryCountdown = $reservations->contains(
+        fn ($reservation) => $reservation->status === \App\Enums\ReservationStatus::PendingPayment
+            && $reservation->latestPayment?->status === \App\Enums\PaymentStatus::Pending
+            && $reservation->latestPayment?->pendingExpiresAt() !== null,
+    );
+    $hasPendingExpiryCountdown = $hasPendingExpiryCountdown
+        || ($nextReservation?->status === \App\Enums\ReservationStatus::PendingPayment
+            && $nextReservation?->latestPayment?->status === \App\Enums\PaymentStatus::Pending
+            && $nextReservation?->latestPayment?->pendingExpiresAt() !== null);
 @endphp
 
 <x-layouts.app>
@@ -64,7 +77,11 @@
 
             @if ($nextReservation)
                 @php
-                    $nextPayment = $nextReservation->payments->first();
+                    $nextPayment = $nextReservation->latestPayment;
+                    $canContinueNextPayment = filled($nextPayment?->snap_token)
+                        && $nextReservation->status === \App\Enums\ReservationStatus::PendingPayment
+                        && $nextPayment?->status === \App\Enums\PaymentStatus::Pending;
+                    $nextPaymentExpiresAt = $nextPayment?->pendingExpiresAt();
                 @endphp
                 <div class="rounded-md border border-primary/15 bg-primary p-6 text-white shadow-xl">
                     <p class="text-sm uppercase tracking-[0.3em] text-white/70">Reservasi Terdekat</p>
@@ -82,8 +99,13 @@
                                 {{ $nextReservation->guest_count }} tamu •
                                 {{ $nextReservation->cafeTable?->name ?? 'Meja akan ditentukan sistem' }}
                             </p>
+                            @if ($canContinueNextPayment && $nextPaymentExpiresAt)
+                                <p class="text-sm font-medium text-amber-100">
+                                    Bayar sebelum {{ $nextPaymentExpiresAt->translatedFormat('d M Y H:i') }}.
+                                </p>
+                            @endif
                         </div>
-                        @if ($nextPayment?->snap_token)
+                        @if ($canContinueNextPayment)
                             <button type="button" data-midtrans-snap-button data-snap-token="{{ $nextPayment->snap_token }}"
                                 data-order-id="{{ $nextPayment->midtrans_order_id ?: $nextPayment->transaction_reference }}"
                                 class="guest-loading-button inline-flex rounded-xl bg-white px-4 py-3 text-sm font-semibold text-primary transition hover:bg-white/90">
@@ -119,13 +141,17 @@
                     <div class="grid gap-5">
                         @foreach ($reservations as $reservation)
                             @php
-                                $payment = $reservation->payments->first();
+                                $payment = $reservation->latestPayment;
                                 $isHighlighted = (int) session('highlight_reservation_id') === $reservation->id;
                                 $canCancel = in_array($reservation->status->value, [
                                     \App\Enums\ReservationStatus::PendingPayment->value,
                                     \App\Enums\ReservationStatus::AwaitingConfirmation->value,
                                     \App\Enums\ReservationStatus::Confirmed->value,
                                 ], true);
+                                $canContinuePayment = filled($payment?->snap_token)
+                                    && $reservation->status === \App\Enums\ReservationStatus::PendingPayment
+                                    && $payment?->status === \App\Enums\PaymentStatus::Pending;
+                                $paymentExpiresAt = $payment?->pendingExpiresAt();
                             @endphp
                             <article id="reservation-{{ $reservation->id }}"
                                 class="rounded-md border bg-white p-6 shadow-sm {{ $isHighlighted ? 'border-primary shadow-primary/10' : 'border-gray-100' }}">
@@ -169,10 +195,28 @@
                                                 {!! nl2br(e($reservation->notes)) !!}
                                             </div>
                                         @endif
+
+                                        @if ($reservation->status === \App\Enums\ReservationStatus::PendingPayment && $paymentExpiresAt)
+                                            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                                                <p class="font-semibold">
+                                                    Selesaikan pembayaran sebelum {{ $paymentExpiresAt->translatedFormat('d M Y H:i') }}.
+                                                </p>
+                                                <p class="mt-1" data-payment-expiry-countdown
+                                                    data-expiry-at="{{ $paymentExpiresAt->toIso8601String() }}">
+                                                    Sisa waktu pembayaran sedang dihitung...
+                                                </p>
+                                            </div>
+                                        @endif
+
+                                        @if ($reservation->status === \App\Enums\ReservationStatus::Cancelled && filled($reservation->cancellation_reason))
+                                            <div class="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm text-red-700">
+                                                {{ $reservation->cancellation_reason }}
+                                            </div>
+                                        @endif
                                     </div>
 
                                     <div class="flex flex-col gap-3 lg:w-56">
-                                        @if ($payment?->snap_token)
+                                        @if ($canContinuePayment)
                                             <button type="button" data-midtrans-snap-button data-snap-token="{{ $payment->snap_token }}"
                                                 data-order-id="{{ $payment->midtrans_order_id ?: $payment->transaction_reference }}"
                                                 class="guest-loading-button inline-flex justify-center rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-primary/90">
@@ -211,6 +255,70 @@
                 @endif
             </div>
         </section>
+
+        @if ($hasPendingExpiryCountdown)
+            @push('scripts')
+                <script>
+                    window.addEventListener('load', function() {
+                        const nodes = Array.from(document.querySelectorAll('[data-payment-expiry-countdown]'));
+
+                        if (!nodes.length) {
+                            return;
+                        }
+
+                        const formatRemaining = (diffMs) => {
+                            const totalSeconds = Math.max(0, Math.floor(diffMs / 1000));
+                            const hours = Math.floor(totalSeconds / 3600);
+                            const minutes = Math.floor((totalSeconds % 3600) / 60);
+                            const seconds = totalSeconds % 60;
+
+                            if (hours > 0) {
+                                return `${hours}j ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}d`;
+                            }
+
+                            return `${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}d`;
+                        };
+
+                        const updateNode = (node) => {
+                            const expiryAt = new Date(node.dataset.expiryAt || '');
+
+                            if (Number.isNaN(expiryAt.getTime())) {
+                                return false;
+                            }
+
+                            const remaining = expiryAt.getTime() - Date.now();
+
+                            if (remaining <= 0) {
+                                node.textContent = 'Batas pembayaran telah habis. Reservasi ini akan dibatalkan otomatis.';
+
+                                return false;
+                            }
+
+                            node.textContent = `Sisa waktu pembayaran: ${formatRemaining(remaining)}`;
+
+                            return true;
+                        };
+
+                        const tick = () => {
+                            let hasActiveCountdown = false;
+
+                            nodes.forEach((node) => {
+                                hasActiveCountdown = updateNode(node) || hasActiveCountdown;
+                            });
+
+                            if (!hasActiveCountdown) {
+                                window.clearInterval(intervalId);
+                            }
+                        };
+
+                        let intervalId = null;
+
+                        tick();
+                        intervalId = window.setInterval(tick, 1000);
+                    });
+                </script>
+            @endpush
+        @endif
 
         @if ($hasSnapPayment && filled($midtransClientKey))
             @push('scripts')

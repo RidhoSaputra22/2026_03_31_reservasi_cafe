@@ -23,6 +23,11 @@ class CafePaymentService
         private readonly MidtransService $midtransService,
     ) {}
 
+    public function pendingPaymentTimeoutMinutes(): int
+    {
+        return max(1, (int) config('reservations.pending_payment_timeout_minutes', 60));
+    }
+
     public function createPaymentForReservation(Reservation $reservation, array $paymentData = []): ?Payment
     {
         $paymentType = $this->resolvePaymentType($paymentData);
@@ -139,6 +144,49 @@ class CafePaymentService
 
             return $this->syncPaymentFromMidtransPayload($payment, $payload);
         });
+    }
+
+    public function canSyncWithMidtrans(Payment $payment): bool
+    {
+        return $this->midtransService->isConfigured()
+            && filled($payment->midtrans_order_id ?: $payment->transaction_reference);
+    }
+
+    public function isPendingPaymentExpired(Payment $payment, ?CarbonInterface $referenceTime = null): bool
+    {
+        return $payment->isPendingExpired($referenceTime);
+    }
+
+    public function expirePendingPayment(Payment $payment): Payment
+    {
+        $payment->loadMissing('reservation');
+
+        if ($payment->status !== PaymentStatus::Pending) {
+            return $payment->fresh(['reservation']);
+        }
+
+        if ($this->canSyncWithMidtrans($payment)) {
+            $payload = $this->midtransService->expireTransaction(
+                (string) ($payment->midtrans_order_id ?: $payment->transaction_reference),
+            );
+
+            return $this->syncPaymentFromMidtransPayload($payment, $payload);
+        }
+
+        $payment->forceFill([
+            'status' => PaymentStatus::Failed,
+            'paid_at' => null,
+            'verified_at' => null,
+            'midtrans_status' => $payment->midtrans_status ?: 'expire',
+        ])->save();
+
+        $reservation = $payment->reservation;
+
+        if ($reservation instanceof Reservation) {
+            $this->applyReservationPaymentStatus($reservation, PaymentStatus::Failed, (float) $payment->amount);
+        }
+
+        return $payment->fresh(['reservation']);
     }
 
     protected function createMidtransTransaction(Payment $payment, array $paymentData): void

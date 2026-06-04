@@ -201,7 +201,6 @@ class BookingController extends Controller
                     'duration_hours' => $durationHours,
                     'guest_count' => (int) $validated['guest_count'],
                 ])
-                ->with('success', 'Reservasi berhasil dibuat dengan kode '.$reservation->reservation_code.'.')
                 ->with('highlight_reservation_id', $reservation->id)
                 ->with('payment_snap_token', $payment->snap_token)
                 ->with('payment_order_id', $payment->midtrans_order_id ?: $payment->transaction_reference);

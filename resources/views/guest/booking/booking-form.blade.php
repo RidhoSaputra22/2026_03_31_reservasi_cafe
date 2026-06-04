@@ -8,7 +8,7 @@
     $profileSeed = trim($customerName !== '' ? $customerName : ($customerEmail !== '' ? $customerEmail : 'Cafe Amiko'));
     $profileWords = preg_split('/\s+/', $profileSeed, -1, PREG_SPLIT_NO_EMPTY) ?: [];
     $profileInitials = '';
-    $basePriceAmount = max(0, (int) ($package['base_price_amount'] ?? $package['price_amount'] ?? 0));
+    $basePriceAmount = max(0, (int) ($package['base_price_amount'] ?? ($package['price_amount'] ?? 0)));
     $includedHours = max(1, (int) ($package['included_hours'] ?? 1));
     $extraHourPriceAmount = max(0, (int) ($package['extra_hour_price_amount'] ?? 0));
 
@@ -23,17 +23,6 @@
 
 <div>
     <div class="space-y-5 rounded-md border border-gray-100 bg-white p-6 shadow-sm ">
-        <div class="space-y-3">
-            <div class="rounded-md border border-gray-200 bg-gray-50 p-4 text-sm font-light text-gray-600">
-                Tentukan tanggal, jam mulai, dan durasi kunjunganmu. Sistem akan menyesuaikan dengan rentang jam aktif admin dan menghitung total harga secara otomatis.
-            </div>
-
-            <div class="space-y-2">
-                <h1 class="text-4xl font-bold">Reservasi Sekarang</h1>
-                <p class="text-sm font-light">Isi data singkat di bawah untuk mengamankan slot kunjunganmu di Cafe Amiko.</p>
-            </div>
-        </div>
-
         @guest
             <div class="space-y-4 rounded-md border border-dashed border-primary/30 bg-primary/5 p-5 text-primary">
                 <p class="text-sm font-medium">
@@ -51,13 +40,28 @@
                 </div>
             </div>
         @else
+            <div class="space-y-3">
+                <div class="rounded-md border border-gray-200 bg-gray-50 p-4 text-sm font-light text-gray-600">
+                    Tentukan tanggal, jam mulai, dan durasi kunjunganmu. Sistem akan menyesuaikan dengan rentang jam aktif
+                    admin dan menghitung total harga secara otomatis.
+                </div>
+
+                <div class="space-y-2">
+                    <h1 class="text-4xl font-bold">Reservasi Sekarang</h1>
+                    <p class="text-sm font-light">Isi data singkat di bawah untuk mengamankan slot kunjunganmu di Cafe
+                        Amiko.</p>
+                </div>
+            </div>
+
+
             <form method="POST" action="{{ route('booking.store', ['slug' => $package['slug']]) }}" class="space-y-4"
                 x-ref="bookingForm" @submit.prevent="openConfirmationModal()">
                 @csrf
 
                 <div class="">
                     <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
-                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-lg font-semibold text-white shadow-sm">
+                        <div
+                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-lg font-semibold text-white shadow-sm">
                             {{ substr($profileInitials, 0, 2) }}
                         </div>
 
@@ -100,14 +104,13 @@
                         {{ $estimatedPriceLabel }}
                     </p>
                     @if ($extraHourPriceAmount > 0)
-                    <p class="text-sm text-gray-500">
-                        Ada biaya tambahan sebesar
-                        <span class="font-medium text-primary">
-                            {{ 'Rp ' . number_format($extraHourPriceAmount, 0, ',', '.') }}
-                        </span>
-                        per jam untuk durasi di atas {{ $includedHours }} jam.
-                    </p>
-
+                        <p class="text-sm text-gray-500">
+                            Ada biaya tambahan sebesar
+                            <span class="font-medium text-primary">
+                                {{ 'Rp ' . number_format($extraHourPriceAmount, 0, ',', '.') }}
+                            </span>
+                            per jam untuk durasi di atas {{ $includedHours }} jam.
+                        </p>
                     @endif
                 </div>
 
@@ -131,6 +134,7 @@
                 'package' => $package,
                 'downPaymentAmount' => $downPaymentAmount,
             ])
+            @include('guest.booking.components.booking-midtrans-loading-modal')
         @endguest
     </div>
 </div>

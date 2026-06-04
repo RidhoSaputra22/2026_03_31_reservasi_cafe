@@ -18,7 +18,11 @@ use RuntimeException;
 
 class ProfileController extends Controller
 {
-    public function show(Request $request, CafePaymentService $paymentService): View|RedirectResponse
+    public function show(
+        Request $request,
+        CafeReservationService $reservationService,
+        CafePaymentService $paymentService,
+    ): View|RedirectResponse
     {
         $user = $request->user();
 
@@ -49,6 +53,8 @@ class ProfileController extends Controller
                 ->with('highlight_reservation_id', $payment->reservation_id);
         }
 
+        $reservationService->expireTimedOutPendingReservations($user->id);
+
         $activeStatuses = [
             ReservationStatus::PendingPayment->value,
             ReservationStatus::AwaitingConfirmation->value,
@@ -59,14 +65,14 @@ class ProfileController extends Controller
         $upcomingQuery = $this->upcomingReservationsQuery($user->reservations(), $activeStatuses);
 
         $reservations = $user->reservations()
-            ->with(['cafeTable', 'reservationSlot', 'payments' => fn ($query) => $query->latest()])
+            ->with(['cafeTable', 'reservationSlot', 'latestPayment'])
             ->orderByDesc('reservation_date')
             ->orderByDesc('start_time')
             ->limit(12)
             ->get();
 
         $upcomingReservations = (clone $upcomingQuery)
-            ->with(['cafeTable', 'reservationSlot', 'payments' => fn ($query) => $query->latest()])
+            ->with(['cafeTable', 'reservationSlot', 'latestPayment'])
             ->limit(3)
             ->get();
 

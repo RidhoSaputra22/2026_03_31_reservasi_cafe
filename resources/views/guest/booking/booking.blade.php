@@ -21,6 +21,7 @@
         initialEstimatedPriceLabel: @js($estimatedPriceLabel),
         today: @js(now()->toDateString()),
         maxGuestCount: @js($maxGuestCount),
+        initialMidtransLoading: @js(filled($paymentSnapToken) && filled($midtransClientKey)),
     })">
         @include('guest.components.site-navbar')
 
@@ -95,10 +96,23 @@
                         const snapToken = @js($paymentSnapToken);
                         const fallbackOrderId = @js($paymentOrderId);
                         const profileUrl = @js(route('customer.profile'));
+                        const loadingEventName = 'booking-midtrans-loading';
+                        const minimumLoadingDuration = 700;
 
-                        if (!snapToken || !window.snap) {
+                        if (!snapToken) {
                             return;
                         }
+
+                        const loadingStartedAt = Date.now();
+
+                        const dispatchLoadingState = (open, detail = {}) => {
+                            window.dispatchEvent(new CustomEvent(loadingEventName, {
+                                detail: {
+                                    open,
+                                    ...detail,
+                                },
+                            }));
+                        };
 
                         const buildProfileUrl = (orderId) => {
                             const url = new URL(profileUrl, window.location.origin);
@@ -110,14 +124,60 @@
                             return url.toString();
                         };
 
-                        window.snap.pay(snapToken, {
-                            onSuccess: function(result) {
-                                window.location.href = buildProfileUrl(result?.order_id || fallbackOrderId);
-                            },
-                            onPending: function() {},
-                            onError: function() {},
-                            onClose: function() {},
+                        const waitForSnap = (timeoutMs = 8000, intervalMs = 150) => new Promise((resolve, reject) => {
+                            if (window.snap?.pay) {
+                                resolve(window.snap);
+
+                                return;
+                            }
+
+                            const startedAt = Date.now();
+                            const timerId = window.setInterval(() => {
+                                if (window.snap?.pay) {
+                                    window.clearInterval(timerId);
+                                    resolve(window.snap);
+
+                                    return;
+                                }
+
+                                if ((Date.now() - startedAt) >= timeoutMs) {
+                                    window.clearInterval(timerId);
+                                    reject(new Error('Midtrans Snap belum siap.'));
+                                }
+                            }, intervalMs);
                         });
+
+                        const openSnapPayment = () => {
+                            const remainingDelay = Math.max(0, minimumLoadingDuration - (Date.now() - loadingStartedAt));
+
+                            window.setTimeout(() => {
+                                dispatchLoadingState(false);
+
+                                try {
+                                    window.snap.pay(snapToken, {
+                                        onSuccess: function(result) {
+                                            window.location.href = buildProfileUrl(result?.order_id || fallbackOrderId);
+                                        },
+                                        onPending: function() {},
+                                        onError: function() {},
+                                        onClose: function() {},
+                                    });
+                                } catch (error) {
+                                    window.location.href = buildProfileUrl(fallbackOrderId);
+                                }
+                            }, remainingDelay);
+                        };
+
+                        dispatchLoadingState(true, {
+                            title: 'Menyiapkan Pembayaran',
+                            message: 'Reservasi berhasil dibuat. Popup pembayaran Midtrans akan segera tampil.',
+                        });
+
+                        waitForSnap()
+                            .then(() => openSnapPayment())
+                            .catch(() => {
+                                window.location.href = buildProfileUrl(fallbackOrderId);
+                            });
                     });
                 </script>
             @endpush

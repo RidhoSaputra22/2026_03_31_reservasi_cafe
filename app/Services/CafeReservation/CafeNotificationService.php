@@ -100,7 +100,7 @@ class CafeNotificationService
             'context' => $context,
         ];
 
-        Log::info('Cafe reservation notification dispatched.', $payload);
+        // Log::info('Cafe reservation notification dispatched.', $payload);
 
         return $payload;
     }

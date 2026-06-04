@@ -2,6 +2,7 @@
 
 namespace App\Services\CafeReservation;
 
+use App\Enums\PaymentStatus;
 use App\Enums\ReservationStatus;
 use App\Enums\TableStatus;
 use App\Models\CafeTable;
@@ -11,7 +12,9 @@ use App\Models\ReservationSlot;
 use App\Models\User;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 use RuntimeException;
@@ -222,6 +225,35 @@ class CafeReservationService
         });
     }
 
+    public function expireTimedOutPendingReservations(?int $userId = null): int
+    {
+        $cutoff = now()->subMinutes($this->paymentService->pendingPaymentTimeoutMinutes());
+        $expiredReservations = 0;
+
+        $query = Reservation::query()
+            ->with(['cafeTable', 'latestPayment'])
+            ->where('status', ReservationStatus::PendingPayment->value)
+            ->whereHas('latestPayment', function (Builder $query) use ($cutoff): void {
+                $query
+                    ->where('status', PaymentStatus::Pending->value)
+                    ->where('created_at', '<=', $cutoff);
+            });
+
+        if ($userId !== null) {
+            $query->where('user_id', $userId);
+        }
+
+        $query->chunkById(50, function ($reservations) use (&$expiredReservations): void {
+            foreach ($reservations as $reservation) {
+                if ($this->expireTimedOutPendingReservation($reservation)) {
+                    $expiredReservations++;
+                }
+            }
+        });
+
+        return $expiredReservations;
+    }
+
     protected function resolveSlot(
         CarbonInterface|string $reservationDate,
         string $startTime,
@@ -303,6 +335,75 @@ class CafeReservationService
         );
     }
 
+    protected function expireTimedOutPendingReservation(Reservation $reservation): bool
+    {
+        $payment = $reservation->latestPayment;
+
+        if (! $payment instanceof Payment || ! $this->paymentService->isPendingPaymentExpired($payment)) {
+            return false;
+        }
+
+        if ($this->paymentService->canSyncWithMidtrans($payment)) {
+            try {
+                $payment = $this->paymentService->syncPaymentFromMidtransOrderId(
+                    (string) ($payment->midtrans_order_id ?: $payment->transaction_reference),
+                );
+            } catch (RuntimeException $exception) {
+                Log::warning('Failed to sync pending reservation payment before expiry sweep.', [
+                    'reservation_id' => $reservation->id,
+                    'payment_id' => $payment->id,
+                    'error' => $exception->getMessage(),
+                ]);
+
+                return false;
+            }
+
+            $reservation = $payment->reservation?->fresh(['cafeTable', 'latestPayment']) ?? $reservation->fresh(['cafeTable', 'latestPayment']);
+
+            if ($reservation?->status !== ReservationStatus::PendingPayment) {
+                return false;
+            }
+
+            if ($payment->status === PaymentStatus::Paid || $payment->status === PaymentStatus::AwaitingVerification) {
+                return false;
+            }
+        }
+
+        if ($payment->status === PaymentStatus::Pending) {
+            try {
+                $payment = $this->paymentService->expirePendingPayment($payment);
+            } catch (RuntimeException $exception) {
+                Log::warning('Failed to expire pending reservation payment.', [
+                    'reservation_id' => $reservation->id,
+                    'payment_id' => $payment->id,
+                    'error' => $exception->getMessage(),
+                ]);
+
+                return false;
+            }
+
+            $reservation = $payment->reservation?->fresh(['cafeTable', 'latestPayment']) ?? $reservation->fresh(['cafeTable', 'latestPayment']);
+        }
+
+        if ($payment->status !== PaymentStatus::Failed || $reservation?->status !== ReservationStatus::PendingPayment) {
+            return false;
+        }
+
+        try {
+            $this->cancelReservation($reservation, $this->expiredPaymentCancellationReason());
+        } catch (RuntimeException $exception) {
+            Log::warning('Failed to cancel reservation after payment expiry.', [
+                'reservation_id' => $reservation->id,
+                'payment_id' => $payment->id,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return false;
+        }
+
+        return true;
+    }
+
     protected function ensureReservationCanBeModified(Reservation $reservation, string $action): void
     {
         if ($reservation->status === ReservationStatus::Cancelled) {
@@ -347,7 +448,16 @@ class CafeReservationService
             'reservationSlot',
             'reservationPackage',
             'payments',
+            'latestPayment',
         ]);
+    }
+
+    protected function expiredPaymentCancellationReason(): string
+    {
+        return (string) config(
+            'reservations.expired_payment_cancellation_reason',
+            'Reservasi dibatalkan otomatis karena batas waktu pembayaran habis.',
+        );
     }
 
     protected function normalizeDate(CarbonInterface|string $reservationDate): CarbonInterface

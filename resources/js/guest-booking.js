@@ -75,6 +75,10 @@ function durationLabel(value) {
     return numericValue === 1 ? '1 jam' : `${numericValue} jam`;
 }
 
+const MIDTRANS_LOADING_EVENT = 'booking-midtrans-loading';
+const MIDTRANS_LOADING_TITLE = 'Menyiapkan Pembayaran';
+const MIDTRANS_LOADING_MESSAGE = 'Reservasi sedang diproses. Popup pembayaran Midtrans akan muncul sebentar lagi.';
+
 document.addEventListener('alpine:init', () => {
     Alpine.data('bookingReservationForm', (config = {}) => ({
         availabilityUrl: config.availabilityUrl || '',
@@ -89,6 +93,9 @@ document.addEventListener('alpine:init', () => {
         estimatedPrice: Number(config.initialEstimatedPrice || 0),
         estimatedPriceLabel: config.initialEstimatedPriceLabel || '',
         confirmationModalOpen: false,
+        midtransLoadingModalOpen: Boolean(config.initialMidtransLoading),
+        midtransLoadingTitle: MIDTRANS_LOADING_TITLE,
+        midtransLoadingMessage: MIDTRANS_LOADING_MESSAGE,
         submitting: false,
         loading: false,
         refreshDebounceId: null,
@@ -124,6 +131,18 @@ document.addEventListener('alpine:init', () => {
             this.$watch('guestCount', (value) => {
                 this.guestCount = this.normalizeGuestCount(value);
                 this.queueRefresh();
+            });
+
+            window.addEventListener(MIDTRANS_LOADING_EVENT, (event) => {
+                const detail = event?.detail || {};
+
+                if (detail.open === false) {
+                    this.closeMidtransLoadingModal();
+
+                    return;
+                }
+
+                this.openMidtransLoadingModal(detail);
             });
         },
 
@@ -306,6 +325,18 @@ document.addEventListener('alpine:init', () => {
             this.confirmationModalOpen = false;
         },
 
+        openMidtransLoadingModal(options = {}) {
+            this.midtransLoadingTitle = options.title || MIDTRANS_LOADING_TITLE;
+            this.midtransLoadingMessage = options.message || MIDTRANS_LOADING_MESSAGE;
+            this.midtransLoadingModalOpen = true;
+        },
+
+        closeMidtransLoadingModal() {
+            this.midtransLoadingModalOpen = false;
+        },
+
+        preventMidtransLoadingClose() {},
+
         submitReservationForm() {
             const form = this.$refs.bookingForm;
 
@@ -319,7 +350,15 @@ document.addEventListener('alpine:init', () => {
 
             this.submitting = true;
             this.confirmationModalOpen = false;
-            form.submit();
+            this.openMidtransLoadingModal({
+                message: 'Reservasi sedang dibuat. Setelah siap, popup pembayaran Midtrans akan tampil otomatis.',
+            });
+
+            window.requestAnimationFrame(() => {
+                window.requestAnimationFrame(() => {
+                    form.submit();
+                });
+            });
         },
     }));
 });
