@@ -31,8 +31,14 @@
                     </p>
                     <button type="button" data-midtrans-snap-button data-snap-token="{{ $sessionPaymentSnapToken }}"
                         data-order-id="{{ $sessionPaymentOrderId }}"
-                        class="mt-4 inline-flex rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-primary/90">
-                        {{ session('payment_redirect_label') ?? 'Lanjutkan Pembayaran' }}
+                        class="guest-loading-button mt-4 inline-flex rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-primary/90">
+                        <span class="guest-loading-button__label">
+                            {{ session('payment_redirect_label') ?? 'Lanjutkan Pembayaran' }}
+                        </span>
+                        <span class="guest-loading-button__state">
+                            <span class="guest-loading-button__spinner" aria-hidden="true"></span>
+                            <span>Memuat pembayaran...</span>
+                        </span>
                     </button>
                 </div>
             @endif
@@ -80,8 +86,12 @@
                         @if ($nextPayment?->snap_token)
                             <button type="button" data-midtrans-snap-button data-snap-token="{{ $nextPayment->snap_token }}"
                                 data-order-id="{{ $nextPayment->midtrans_order_id ?: $nextPayment->transaction_reference }}"
-                                class="inline-flex rounded-xl bg-white px-4 py-3 text-sm font-semibold text-primary transition hover:bg-white/90">
-                                Lanjut Pembayaran
+                                class="guest-loading-button inline-flex rounded-xl bg-white px-4 py-3 text-sm font-semibold text-primary transition hover:bg-white/90">
+                                <span class="guest-loading-button__label">Lanjut Pembayaran</span>
+                                <span class="guest-loading-button__state">
+                                    <span class="guest-loading-button__spinner" aria-hidden="true"></span>
+                                    <span>Memuat pembayaran...</span>
+                                </span>
                             </button>
                         @endif
                     </div>
@@ -165,8 +175,12 @@
                                         @if ($payment?->snap_token)
                                             <button type="button" data-midtrans-snap-button data-snap-token="{{ $payment->snap_token }}"
                                                 data-order-id="{{ $payment->midtrans_order_id ?: $payment->transaction_reference }}"
-                                                class="inline-flex justify-center rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-primary/90">
-                                                Lanjut Pembayaran
+                                                class="guest-loading-button inline-flex justify-center rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-primary/90">
+                                                <span class="guest-loading-button__label">Lanjut Pembayaran</span>
+                                                <span class="guest-loading-button__state">
+                                                    <span class="guest-loading-button__spinner" aria-hidden="true"></span>
+                                                    <span>Memuat pembayaran...</span>
+                                                </span>
                                             </button>
                                         @endif
 
@@ -176,12 +190,16 @@
                                         </a>
 
                                         @if ($canCancel)
-                                            <form method="POST" action="{{ route('customer.reservations.cancel', $reservation) }}">
+                                            <form method="POST" action="{{ route('customer.reservations.cancel', $reservation) }}" data-loading-form>
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit"
-                                                    class="w-full rounded-xl border border-red-200 px-4 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-50">
-                                                    Batalkan Reservasi
+                                                <button type="submit" data-loading-button
+                                                    class="guest-loading-button w-full rounded-xl border border-red-200 px-4 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-50">
+                                                    <span class="guest-loading-button__label">Batalkan Reservasi</span>
+                                                    <span class="guest-loading-button__state">
+                                                        <span class="guest-loading-button__spinner" aria-hidden="true"></span>
+                                                        <span>Membatalkan...</span>
+                                                    </span>
                                                 </button>
                                             </form>
                                         @endif
@@ -215,24 +233,40 @@
                             return url.toString();
                         };
 
-                        const openSnapPayment = (token, fallbackOrderId) => {
+                        const openSnapPayment = (button, token, fallbackOrderId) => {
                             if (!token) {
                                 return;
+                            }
+
+                            if (button && window.appCafe?.setButtonLoadingState) {
+                                window.appCafe.setButtonLoadingState(button, true);
                             }
 
                             window.snap.pay(token, {
                                 onSuccess: function(result) {
                                     window.location.href = buildProfileUrl(result?.order_id || fallbackOrderId);
                                 },
-                                onPending: function() {},
-                                onError: function() {},
-                                onClose: function() {},
+                                onPending: function() {
+                                    if (button && window.appCafe?.setButtonLoadingState) {
+                                        window.appCafe.setButtonLoadingState(button, false);
+                                    }
+                                },
+                                onError: function() {
+                                    if (button && window.appCafe?.setButtonLoadingState) {
+                                        window.appCafe.setButtonLoadingState(button, false);
+                                    }
+                                },
+                                onClose: function() {
+                                    if (button && window.appCafe?.setButtonLoadingState) {
+                                        window.appCafe.setButtonLoadingState(button, false);
+                                    }
+                                },
                             });
                         };
 
                         document.querySelectorAll('[data-midtrans-snap-button]').forEach(function(button) {
                             button.addEventListener('click', function() {
-                                openSnapPayment(button.dataset.snapToken, button.dataset.orderId);
+                                openSnapPayment(button, button.dataset.snapToken, button.dataset.orderId);
                             });
                         });
                     });

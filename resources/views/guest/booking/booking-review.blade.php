@@ -14,7 +14,7 @@
         <h3 class="text-lg font-semibold">Tulis Ulasan</h3>
 
         <form method="POST" action="{{ route('booking.reviews.store', ['slug' => $package['slug']]) }}"
-            class="space-y-4">
+            class="space-y-4" data-loading-form>
             @csrf
 
             @guest
@@ -47,9 +47,13 @@
                     placeholder="Bagikan pengalamanmu setelah berkunjung ke Cafe Amiko.">{{ old('comment') }}</textarea>
             </div>
 
-            <button type="submit"
-                class="rounded-xl bg-primary px-4 py-2 font-semibold text-white transition hover:bg-primary/90">
-                Kirim Ulasan
+            <button type="submit" data-loading-button
+                class="guest-loading-button rounded-xl bg-primary px-4 py-2 font-semibold text-white transition hover:bg-primary/90">
+                <span class="guest-loading-button__label">Kirim Ulasan</span>
+                <span class="guest-loading-button__state">
+                    <span class="guest-loading-button__spinner" aria-hidden="true"></span>
+                    <span>Mengirim...</span>
+                </span>
             </button>
         </form>
     </div>

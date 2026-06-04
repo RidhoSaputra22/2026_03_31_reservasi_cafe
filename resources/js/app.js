@@ -416,11 +416,64 @@ function initializeReservationForm() {
     }
 }
 
+function setButtonLoadingState(button, isLoading) {
+    if (!(button instanceof HTMLElement)) {
+        return;
+    }
+
+    if (isLoading) {
+        button.dataset.loadingWasDisabled = button.disabled ? 'true' : 'false';
+        button.disabled = true;
+        button.setAttribute('aria-busy', 'true');
+        button.classList.add('is-loading');
+
+        return;
+    }
+
+    button.classList.remove('is-loading');
+    button.removeAttribute('aria-busy');
+
+    if (button.dataset.loadingWasDisabled !== 'true') {
+        button.disabled = false;
+    }
+
+    delete button.dataset.loadingWasDisabled;
+}
+
+function bindLoadingForms() {
+    document.querySelectorAll('form[data-loading-form]').forEach((form) => {
+        if (form.dataset.loadingBound === 'true') {
+            return;
+        }
+
+        form.dataset.loadingBound = 'true';
+
+        form.addEventListener('submit', (event) => {
+            if (form.dataset.loadingActive === 'true') {
+                event.preventDefault();
+
+                return;
+            }
+
+            form.dataset.loadingActive = 'true';
+
+            const button = form.querySelector('[data-loading-button]')
+                || form.querySelector('button[type="submit"]')
+                || form.querySelector('input[type="submit"]');
+
+            if (button instanceof HTMLElement) {
+                setButtonLoadingState(button, true);
+            }
+        });
+    });
+}
+
 function initializeDomBindings() {
     updateCartCount();
     renderCart();
     renderProfileLocalReservation();
     initializeReservationForm();
+    bindLoadingForms();
 
     document.querySelector('#toGuestStep')?.addEventListener('click', () => setReservationStep('guest'));
     document.querySelector('#backToCartStep')?.addEventListener('click', () => setReservationStep('cart'));
@@ -488,7 +541,7 @@ document.addEventListener('alpine:init', () => {
 });
 
 window.Alpine = Alpine;
-window.appCafe = { addToCart, changeCartQty, removeCartItem, clearCart, setReservationStep };
+window.appCafe = { addToCart, changeCartQty, removeCartItem, clearCart, setReservationStep, setButtonLoadingState };
 window.changeCartQty = changeCartQty;
 window.removeCartItem = removeCartItem;
 window.clearCart = clearCart;

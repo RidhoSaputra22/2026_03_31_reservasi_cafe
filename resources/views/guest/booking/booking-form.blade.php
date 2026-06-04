@@ -116,10 +116,13 @@
                 <div>
                     <button type="button" @click="openConfirmationModal()"
                         :disabled="loading || submitting || !reservationDate || !startTime || !isAvailable()"
-                        class="w-full rounded-md bg-primary px-4 py-3 font-semibold text-white transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-primary/50">
-                        <span x-show="!loading && !submitting">Kirim Permintaan Reservasi</span>
-                        <span x-show="submitting" x-cloak>Menyiapkan reservasi...</span>
-                        <span x-show="loading" x-cloak>Memeriksa jadwal...</span>
+                        :class="{ 'is-loading': isBusy() }"
+                        class="guest-loading-button w-full rounded-md bg-primary px-4 py-3 font-semibold text-white transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-primary/50">
+                        <span class="guest-loading-button__label">Kirim Permintaan Reservasi</span>
+                        <span class="guest-loading-button__state" x-cloak>
+                            <span class="guest-loading-button__spinner" aria-hidden="true"></span>
+                            <span x-text="buttonLoadingLabel()"></span>
+                        </span>
                     </button>
                 </div>
             </form>

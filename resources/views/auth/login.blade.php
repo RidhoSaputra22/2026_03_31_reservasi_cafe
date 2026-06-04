@@ -29,7 +29,7 @@
                     <p class="mt-2 text-sm leading-6 text-coffee-600">Gunakan email pelanggan untuk masuk.</p>
                 </div>
 
-                <form method="POST" action="{{ route('login.store') }}" class="space-y-5">
+                <form method="POST" action="{{ route('login.store') }}" class="space-y-5" data-loading-form>
                     @csrf
                     @if (request('redirect'))
                         <input type="hidden" name="redirect_to" value="{{ request('redirect') }}">
@@ -55,7 +55,13 @@
                         </label>
                     </div>
 
-                    <button type="submit" class="pill-button-dark w-full">Masuk</button>
+                    <button type="submit" data-loading-button class="guest-loading-button pill-button-dark w-full">
+                        <span class="guest-loading-button__label">Masuk</span>
+                        <span class="guest-loading-button__state">
+                            <span class="guest-loading-button__spinner" aria-hidden="true"></span>
+                            <span>Memproses...</span>
+                        </span>
+                    </button>
                 </form>
 
                 <p class="mt-6 text-center text-sm text-coffee-600">

@@ -15,7 +15,7 @@
     <div class="flex flex-col gap-10 xl:flex-row xl:gap-24">
         {{-- FILTER --}}
         <form method="GET" action="{{ route('packages.index') }}#{{ $resultsAnchor }}"
-            class="rounded-2xl border border-gray-100 bg-white p-6 xl:w-80">
+            class="rounded-2xl border border-gray-100 bg-white p-6 xl:w-80" data-loading-form>
             <h1 class="mb-6 text-xl font-semibold">Filter Reservasi</h1>
 
             <div class="space-y-6">
@@ -58,9 +58,13 @@
                 </div>
 
                 <div class="flex gap-3">
-                    <button type="submit"
-                        class="flex-1 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-primary/90 cursor-pointer">
-                        Terapkan
+                    <button type="submit" data-loading-button
+                        class="guest-loading-button flex-1 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-primary/90 cursor-pointer">
+                        <span class="guest-loading-button__label">Terapkan</span>
+                        <span class="guest-loading-button__state">
+                            <span class="guest-loading-button__spinner" aria-hidden="true"></span>
+                            <span>Menerapkan...</span>
+                        </span>
                     </button>
                     <a href="{{ route('packages.index') }}#{{ $resultsAnchor }}"
                         class="rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-primary transition hover:border-primary hover:bg-primary/5">

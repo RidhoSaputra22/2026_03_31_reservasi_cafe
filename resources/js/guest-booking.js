@@ -258,6 +258,14 @@ document.addEventListener('alpine:init', () => {
             return this.estimatedPriceLabel || 'Rp. 0';
         },
 
+        isBusy() {
+            return this.loading || this.submitting;
+        },
+
+        buttonLoadingLabel() {
+            return this.submitting ? 'Memproses...' : 'Memeriksa...';
+        },
+
         formattedReservationDate() {
             if (!this.reservationDate) {
                 return 'Belum dipilih';

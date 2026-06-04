@@ -67,16 +67,24 @@
                                 Akun Saya
                             </a>
 
-                            <form method="POST" action="{{ route('logout') }}">
+                            <form method="POST" action="{{ route('logout') }}" data-loading-form>
                                 @csrf
-                                <button type="submit"
-                                    class="flex w-full items-center gap-3 rounded-md px-4 py-3 text-left text-sm font-medium text-primary transition hover:bg-primary/5 cursor-pointer">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
-                                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                                        <path stroke-linecap="round" stroke-linejoin="round"
-                                            d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6A2.25 2.25 0 0 0 5.25 5.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
-                                    </svg>
-                                    Keluar
+                                <button type="submit" data-loading-button
+                                    class="guest-loading-button flex w-full items-center gap-3 rounded-md px-4 py-3 text-left text-sm font-medium text-primary transition hover:bg-primary/5 cursor-pointer">
+                                    <span class="guest-loading-button__label">
+                                        <span class="flex items-center gap-3">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                                                viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                    d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6A2.25 2.25 0 0 0 5.25 5.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+                                            </svg>
+                                            <span>Keluar</span>
+                                        </span>
+                                    </span>
+                                    <span class="guest-loading-button__state">
+                                        <span class="guest-loading-button__spinner" aria-hidden="true"></span>
+                                        <span>Keluar...</span>
+                                    </span>
                                 </button>
                             </form>
                         </div>
