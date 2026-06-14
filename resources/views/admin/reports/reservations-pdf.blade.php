@@ -11,16 +11,16 @@
         <table class="report-table">
             <thead>
                 <tr>
-                    <th style="width: 4%;">No</th>
-                    <th style="width: 12%;">Kode</th>
-                    <th style="width: 10%;">Tanggal</th>
-                    <th style="width: 8%;">Jam</th>
-                    <th style="width: 16%;">Pelanggan</th>
-                    <th style="width: 13%;">Kontak</th>
-                    <th style="width: 16%;">Meja / Slot</th>
-                    <th style="width: 7%;">Tamu</th>
-                    <th style="width: 8%;">Status</th>
-                    <th style="width: 10%;">Sisa Tagihan</th>
+                    <th >No</th>
+                    <th >Kode</th>
+                    <th >Tanggal</th>
+                    {{-- <th >Jam</th> --}}
+                    <th >Pelanggan</th>
+                    <th >Kontak</th>
+                    <th >Meja / Slot</th>
+                    <th >Tamu</th>
+                    <th >Status</th>
+                    <th >Sisa Tagihan</th>
                 </tr>
             </thead>
             <tbody>
@@ -33,13 +33,13 @@
                                 <div class="muted">{{ $reservation->package_name }}</div>
                             @endif
                         </td>
-                        <td>{{ $reservation->reservation_date?->translatedFormat('d M Y') ?? '-' }}</td>
-                        <td>
+                        <td>{{ $reservation->reservation_date?->translatedFormat('d M Y') ?? '-' }}
                             {{ substr((string) $reservation->start_time, 0, 5) }}
                             @if ($reservation->end_time)
-                                <div class="muted">{{ substr((string) $reservation->end_time, 0, 5) }}</div>
+                            {{ substr((string) $reservation->end_time, 0, 5) }}
                             @endif
                         </td>
+
                         <td>
                             <strong>{{ $reservation->customer_name }}</strong>
                             @if ($reservation->notes)

@@ -81,7 +81,7 @@
         .summary-card {
             border: 1px solid #dbcab6;
             background: #fbf7f0;
-            border-radius: 12px;
+            border-radius: 8px;
             padding: 12px;
         }
 
